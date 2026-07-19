@@ -149,6 +149,8 @@ if win and 'NoDefaultCurrentDirectoryInExePath' in modifiedEnv:
     del modifiedEnv['NoDefaultCurrentDirectoryInExePath']
 
 modifiedEnv['PATH'] = environment['PATH_PREFIX'] + modifiedEnv['PATH']
+if win:
+    modifiedEnv['PATH'] += pathSep + os.path.join(rootDir, 'ThirdParty\\msys64\\usr\\bin')
 
 def computeFileHash(path):
     sha1 = hashlib.sha1()

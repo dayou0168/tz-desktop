@@ -149,8 +149,6 @@ if win and 'NoDefaultCurrentDirectoryInExePath' in modifiedEnv:
     del modifiedEnv['NoDefaultCurrentDirectoryInExePath']
 
 modifiedEnv['PATH'] = environment['PATH_PREFIX'] + modifiedEnv['PATH']
-if win:
-    modifiedEnv['PATH'] += pathSep + os.path.join(rootDir, 'ThirdParty\\msys64\\usr\\bin')
 
 def computeFileHash(path):
     sha1 = hashlib.sha1()
@@ -480,10 +478,10 @@ win:
         mingw-w64-x86_64-perl ^
         mingw-w64-x86_64-pkgconf
 
-    curl.exe --fail --location --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 --output nasm-2.16.03-1-x86_64.pkg.tar.zst https://mirror.msys2.org/msys/x86_64/nasm-2.16.03-1-x86_64.pkg.tar.zst
-    powershell -NoProfile -Command "if ((Get-FileHash -Algorithm SHA256 -LiteralPath './nasm-2.16.03-1-x86_64.pkg.tar.zst').Hash -ne 'E5F54D79B94C0290579C20D092603DC97289887BA1C281AC0AF88626BFBF1CAB') { throw 'NASM package SHA256 mismatch' }"
-    pacman -U --noconfirm nasm-2.16.03-1-x86_64.pkg.tar.zst
-    del nasm-2.16.03-1-x86_64.pkg.tar.zst
+    curl.exe --fail --location --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 --output mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst
+    pacman -U --noconfirm mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst
+    powershell -NoProfile -Command "if ((Get-FileHash -Algorithm SHA256 -LiteralPath './msys64/mingw64/bin/nasm.exe').Hash -ne 'A93276636266516421CC9B422F47476C21F7A2949F1AE251556B2F1D33A3BE04') { throw 'Native NASM executable SHA256 mismatch' }"
+    del mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst
 """, 'ThirdParty')
 
 stage('python', """

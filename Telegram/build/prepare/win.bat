@@ -3,7 +3,7 @@
 set "FullScriptPath=%~dp0"
 
 REM Keep dependency preparation within hosted-runner resource limits.
-if not defined TZ_PREPARE_THREADS set "TZ_PREPARE_THREADS=2"
+if not defined TZ_PREPARE_THREADS set "TZ_PREPARE_THREADS=1"
 set "NUMBER_OF_PROCESSORS=%TZ_PREPARE_THREADS%"
 if not defined CL_MPCount set "CL_MPCount=1"
 if not defined UseMultiToolTask set "UseMultiToolTask=false"

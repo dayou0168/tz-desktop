@@ -762,7 +762,7 @@ QByteArray Parser::block(const MTPDpageBlockChannel &data) {
 	) + tag("h4", name);
 	const auto link = username.isEmpty()
 		? "javascript:alert('Channel Link');"
-		: "https://t.me/" + username;
+		: "https://tg.tianze8.cc/" + username;
 	result = tag(
 		"a",
 		{ { "href", link }, { "data-context", "channel" + id } },

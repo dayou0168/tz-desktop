@@ -26,6 +26,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "export/export_manager.h"
 #include "export/view/export_view_panel_controller.h"
 #include "mtproto/mtproto_config.h"
+#include "tz/tz_client_contract.h"
 #include "window/notifications_manager.h"
 #include "history/history.h"
 #include "history/history_item.h"
@@ -5376,7 +5377,7 @@ void Session::serviceNotification(
 				| MTPDuser::Flag::f_verified),
 			MTP_long(peerToUser(PeerData::kServiceNotificationsId).bare),
 			MTPlong(), // access_hash
-			MTP_string("Telegram"),
+			MTP_string(QStringView(Tz::kCompanyName).toString()),
 			MTPstring(), // last_name
 			MTPstring(), // username
 			MTP_string("42777"),

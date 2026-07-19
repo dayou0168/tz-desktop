@@ -12,6 +12,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "core/file_utilities.h"
 #include "core/update_checker.h"
 #include "lang/lang_keys.h"
+#include "tz/tz_client_contract.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/painter.h"
 #include "ui/rect.h"
@@ -36,7 +37,8 @@ namespace {
 rpl::producer<TextWithEntities> Text1() {
 	return tr::lng_about_text1(
 		lt_api_link,
-		tr::lng_about_text1_api(tr::url(u"https://core.telegram.org/api"_q)),
+		tr::lng_about_text1_api(tr::url(
+			QStringView(Tz::kInternalPublicUrl).toString())),
 		tr::marked);
 }
 
@@ -63,7 +65,7 @@ rpl::producer<TextWithEntities> Text3() {
 } // namespace
 
 void AboutBox(not_null<Ui::GenericBox*> box) {
-	box->setTitle(u"Telegram Desktop"_q);
+	box->setTitle(QStringView(Tz::kCompanyName).toString());
 
 	auto layout = box->verticalLayout();
 
@@ -105,7 +107,7 @@ void AboutBox(not_null<Ui::GenericBox*> box) {
 			box->getDelegate()->show(
 				Ui::MakeInformBox(
 					"The link to the current private alpha "
-					"version of Telegram Desktop was copied "
+					"version of 天泽集团 was copied "
 					"to the clipboard."));
 		} else {
 			File::OpenUrl(Core::App().changelogLink());
@@ -132,20 +134,7 @@ void AboutBox(not_null<Ui::GenericBox*> box) {
 }
 
 QString telegramFaqLink() {
-	const auto result = u"https://telegram.org/faq"_q;
-	const auto langpacked = [&](const char *language) {
-		return result + '/' + language;
-	};
-	const auto current = Lang::Id();
-	for (const auto language : { "de", "es", "it", "ko" }) {
-		if (current.startsWith(QLatin1String(language))) {
-			return langpacked(language);
-		}
-	}
-	if (current.startsWith(u"pt-br"_q)) {
-		return langpacked("br");
-	}
-	return result;
+	return QStringView(Tz::kInternalPublicUrl).toString();
 }
 
 QString currentVersionText() {

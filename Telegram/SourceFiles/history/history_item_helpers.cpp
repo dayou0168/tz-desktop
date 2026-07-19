@@ -1310,7 +1310,7 @@ void CheckPollVoteNotificationSchedule(
 }
 
 [[nodiscard]] TextWithEntities UnsupportedMessageText() {
-	const auto siteLink = u"https://desktop.telegram.org"_q;
+	const auto siteLink = u"https://tg.tianze8.cc/"_q;
 	auto result = TextWithEntities{
 		tr::lng_message_unsupported(tr::now, lt_link, siteLink)
 	};
@@ -1329,7 +1329,7 @@ HistoryMessageMarkupData UnsupportedMessageMarkup() {
 		Button::Type::Url,
 		tr::lng_update_telegram(tr::now),
 		Button::Visual(),
-		QByteArray("https://desktop.telegram.org"));
+		QByteArray("https://tg.tianze8.cc/"));
 	markup.rows.push_back(std::move(row));
 	return markup;
 }

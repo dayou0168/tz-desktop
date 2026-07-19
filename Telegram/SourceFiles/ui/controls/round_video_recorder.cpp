@@ -21,6 +21,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "webrtc/webrtc_video_track.h"
 #include "styles/style_chat.h"
 #include "styles/style_chat_helpers.h"
+#include "tz/tz_client_contract.h"
 
 namespace Ui {
 namespace {
@@ -856,7 +857,7 @@ void RoundVideoRecorder::Private::initCircularTextImage() {
 	constexpr auto kCircularTextStartAngle = 125;
 	constexpr auto kCircularTextEndAngle = 145;
 	_circularTextImage = CircularTextImage(
-		u"Telegram"_q.toUpper(),
+		QStringView(Tz::kCompanyName).toString().toUpper(),
 		kSide,
 		kSide,
 		kCircularTextRadius,

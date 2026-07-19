@@ -884,7 +884,7 @@ void StickerSetBox::updateButtons() {
 						Ui::Text::RichLangValue));
 				item->clicks(
 				) | rpl::on_next([] {
-					UrlClickHandler::Open(u"https://t.me/stickers"_q);
+					UrlClickHandler::Open(u"https://tg.tianze8.cc/"_q);
 				}, item->lifetime());
 				menu->addAction(std::move(item));
 			});

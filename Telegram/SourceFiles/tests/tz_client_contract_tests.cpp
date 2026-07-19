@@ -62,5 +62,41 @@ int main() {
 			!= QStringView(u"tz://join?invite=bad/value").toString()) {
 		return 17;
 	}
+	if (Tz::VisibleBrandText(
+			QStringView(u"Telegram Desktop / Telegram / telegram").toString())
+			!= QStringView(u"天泽集团 / 天泽集团 / 天泽集团").toString()) {
+		return 18;
+	}
+	if (Tz::VisibleBrandText(
+			QStringView(u"Telegram Premium").toString())
+			!= QStringView(u"天泽集团 Premium").toString()) {
+		return 19;
+	}
+	if (Tz::VisibleBrandText(
+			QStringView(u"https://telegram.org/faq").toString())
+			!= QStringView(Tz::kInternalPublicUrl).toString()) {
+		return 20;
+	}
+	if (Tz::VisibleBrandText(
+			QStringView(u"Read https://telegram.org/faq.").toString())
+			!= QStringView(u"Read https://tg.tianze8.cc/.").toString()) {
+		return 21;
+	}
+	if (Tz::VisibleBrandText(
+			QStringView(u"https://example.com/Telegram").toString())
+			!= QStringView(u"https://example.com/Telegram").toString()) {
+		return 22;
+	}
+	if (Tz::VisibleBrandText(
+			QStringView(
+				u"TelegramWebviewProxy TelegramBeta_ close_telegram").toString())
+			!= QStringView(
+				u"TelegramWebviewProxy TelegramBeta_ close_telegram").toString()) {
+		return 23;
+	}
+	if (Tz::VisibleBrandText(QStringView(u"Hide {telegram}").toString())
+			!= QStringView(u"Hide {telegram}").toString()) {
+		return 24;
+	}
 	return 0;
 }

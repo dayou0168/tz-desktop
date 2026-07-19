@@ -1,15 +1,18 @@
 #pragma once
 
+#include <QtCore/QByteArray>
 #include <QtCore/QString>
 #include <QtCore/QStringView>
 
 #include <algorithm>
+#include <utility>
 
 namespace Tz {
 
 inline constexpr auto kProductName = u"TZ";
 inline constexpr auto kCompanyName = u"天泽集团";
 inline constexpr auto kCompanyAscii = u"tianze";
+inline constexpr auto kInternalPublicUrl = u"https://tg.tianze8.cc/";
 inline constexpr auto kVersion = u"1.0.1";
 inline constexpr auto kDefaultLanguageId = u"zh-hans";
 inline constexpr auto kCompatibleLegacyStorageVersion = 6008004;
@@ -40,6 +43,153 @@ inline constexpr auto kLoginIdentityOrPasswordError = u"账号或密码错误";
 
 [[nodiscard]] inline bool LoginPasswordAccepted(QStringView password) {
 	return UnicodeCodePointCount(password) >= kLoginPasswordMinimumCodePoints;
+}
+
+[[nodiscard]] inline bool IsVisibleBrandIdentifierCharacter(QChar value) {
+	return value.isLetterOrNumber() || (value == '_');
+}
+
+[[nodiscard]] inline bool IsOfficialTelegramHost(QStringView host) {
+	const auto matches = [&](QStringView expected) {
+		return host.compare(expected, Qt::CaseInsensitive) == 0;
+	};
+	const auto isSubdomainOf = [&](QStringView expected) {
+		return host.endsWith(expected, Qt::CaseInsensitive)
+			&& (host.size() > expected.size())
+			&& (host[host.size() - expected.size() - 1] == '.');
+	};
+	return matches(QStringView(u"t.me"))
+		|| matches(QStringView(u"telegram.me"))
+		|| isSubdomainOf(QStringView(u"telegram.me"))
+		|| matches(QStringView(u"telegram.dog"))
+		|| isSubdomainOf(QStringView(u"telegram.dog"))
+		|| matches(QStringView(u"telegram.org"))
+		|| isSubdomainOf(QStringView(u"telegram.org"))
+		|| matches(QStringView(u"telegramdesktop.github.io"));
+}
+
+[[nodiscard]] inline QString InternalizeVisibleUrls(QString text) {
+	auto offset = 0;
+	while (offset < text.size()) {
+		const auto http = text.indexOf(
+			QStringView(u"http://"),
+			offset,
+			Qt::CaseInsensitive);
+		const auto https = text.indexOf(
+			QStringView(u"https://"),
+			offset,
+			Qt::CaseInsensitive);
+		const auto start = (http < 0)
+			? https
+			: (https < 0)
+			? http
+			: std::min(http, https);
+		if (start < 0) {
+			break;
+		}
+		const auto schemeSize = text.mid(start).startsWith(
+			QStringView(u"https://"),
+			Qt::CaseInsensitive)
+			? 8
+			: 7;
+		auto end = start + schemeSize;
+		while (end < text.size()
+			&& !text[end].isSpace()
+			&& !QStringView(u"<>\"'()[]{}").contains(text[end])) {
+			++end;
+		}
+		auto urlEnd = end;
+		while (urlEnd > start
+			&& QStringView(u".,;!?").contains(text[urlEnd - 1])) {
+			--urlEnd;
+		}
+		auto hostEnd = start + schemeSize;
+		while (hostEnd < urlEnd
+			&& !QStringView(u"/:?#").contains(text[hostEnd])) {
+			++hostEnd;
+		}
+		const auto host = QStringView(text).mid(
+			start + schemeSize,
+			hostEnd - start - schemeSize);
+		if (IsOfficialTelegramHost(host)) {
+			text.replace(
+				start,
+				urlEnd - start,
+				QStringView(kInternalPublicUrl).toString());
+			offset = start + QStringView(kInternalPublicUrl).size();
+		} else {
+			offset = end;
+		}
+	}
+	return text;
+}
+
+[[nodiscard]] inline bool IsInsideVisibleUrl(
+		QStringView text,
+		int position) {
+	const auto http = text.lastIndexOf(
+		QStringView(u"http://"),
+		position,
+		Qt::CaseInsensitive);
+	const auto https = text.lastIndexOf(
+		QStringView(u"https://"),
+		position,
+		Qt::CaseInsensitive);
+	const auto start = std::max(http, https);
+	if (start < 0) {
+		return false;
+	}
+	for (auto i = start; i != position; ++i) {
+		if (text[i].isSpace()
+			|| QStringView(u"<>\"'()[]{}").contains(text[i])) {
+			return false;
+		}
+	}
+	return true;
+}
+
+[[nodiscard]] inline QString VisibleBrandText(QString text) {
+	text = InternalizeVisibleUrls(std::move(text));
+	const auto replace = [&](QStringView brand) {
+		auto searchFrom = 0;
+		while (searchFrom < text.size()) {
+			const auto position = text.indexOf(
+				brand,
+				searchFrom,
+				Qt::CaseInsensitive);
+			if (position < 0) {
+				break;
+			}
+			const auto end = position + brand.size();
+			const auto startsInsideIdentifier = (position > 0)
+				&& IsVisibleBrandIdentifierCharacter(text[position - 1]);
+			const auto endsInsideIdentifier = (end < text.size())
+				&& IsVisibleBrandIdentifierCharacter(text[end]);
+			const auto isPlaceholder = (position > 0)
+				&& (end < text.size())
+				&& (text[position - 1] == '{')
+				&& (text[end] == '}');
+			if (!startsInsideIdentifier
+				&& !endsInsideIdentifier
+				&& !isPlaceholder
+				&& !IsInsideVisibleUrl(QStringView(text), position)) {
+				text.replace(
+					position,
+					brand.size(),
+					QStringView(kCompanyName).toString());
+				searchFrom = position + QStringView(kCompanyName).size();
+			} else {
+				searchFrom = position + 1;
+			}
+		}
+	};
+	replace(QStringView(u"Telegram Desktop"));
+	replace(QStringView(u"Telegram"));
+	return text;
+}
+
+[[nodiscard]] inline QByteArray VisibleBrandUtf8(QByteArray text) {
+	return VisibleBrandText(QString::fromUtf8(text)).toUtf8();
 }
 
 [[nodiscard]] inline bool IsInviteHashCharacter(QChar value) {

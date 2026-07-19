@@ -16,6 +16,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "main/main_app_config.h"
 #include "main/main_session_settings.h"
 #include "main/main_session.h"
+#include "tz/tz_client_contract.h"
 
 namespace Api {
 namespace {
@@ -38,7 +39,8 @@ Authorizations::Entry ParseEntry(const MTPDauthorization &data) {
 		|| isTest;
 
 	const auto appName = isDesktop
-		? u"Telegram Desktop%1"_q.arg(isTest ? " (GitHub)" : QString())
+		? QStringView(Tz::kCompanyName).toString()
+			+ (isTest ? u" (GitHub)"_q : QString())
 		: qs(data.vapp_name());// + u" for "_q + qs(d.vplatform());
 	const auto appVer = [&] {
 		const auto version = qs(data.vapp_version());

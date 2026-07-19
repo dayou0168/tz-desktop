@@ -50,6 +50,37 @@ Assert-Contains 'Telegram\SourceFiles\lang\lang_instance.cpp' ': _id(DefaultLang
 Assert-Contains 'Telegram\SourceFiles\lang\lang_instance.cpp' '_pluralId(DefaultLanguageId())'
 Assert-Contains 'Telegram\SourceFiles\lang\lang_cloud_manager.cpp' '_langpack.version(Pack::Current) == 0'
 Assert-Contains 'Telegram\SourceFiles\storage\localstorage.cpp' 'Lang::GetInstance().fillFromSerialized(data, langpack.version)'
+Assert-Contains 'Telegram\SourceFiles\lang\lang_instance.cpp' 'Tz::VisibleBrandText(GetInstance().getNonDefaultValue(key))'
+Assert-Contains 'Telegram\SourceFiles\lang\lang_instance.cpp' 'Tz::VisibleBrandText(GetInstance().getValue(key))'
+Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'kInternalPublicUrl = u"https://tg.tianze8.cc/"'
+Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'VisibleBrandText(QString text)'
+
+foreach ($langPath in @(
+    'Telegram\Resources\langs\lang.strings',
+    'Telegram\Resources\langs\cloud_lang.strings'
+)) {
+    $visibleValues = (Read-RepositoryFile $langPath) -split "`r?`n" |
+        Where-Object { $_ -match '^\s*"[^"]+"\s*=\s*"(.*)";\s*$' } |
+        ForEach-Object { $Matches[1] }
+    if (($visibleValues -join "`n") -match '(?i)telegram') {
+        $nonPlaceholderValues = $visibleValues -replace '(?i)\{telegram\}', ''
+        if (($nonPlaceholderValues -join "`n") -match '(?i)telegram') {
+            throw "$langPath contains a visible Telegram brand value"
+        }
+    }
+    if (($visibleValues -join "`n").Contains("{$companyName}")) {
+        throw "$langPath contains a translated placeholder name"
+    }
+}
+
+Assert-Contains 'Telegram\SourceFiles\intro\intro_start.cpp' 'QStringView(Tz::kCompanyName).toString()'
+Assert-Contains 'Telegram\SourceFiles\boxes\about_box.cpp' 'QStringView(Tz::kCompanyName).toString()'
+Assert-Contains 'Telegram\SourceFiles\settings\sections\settings_notifications.cpp' 'QStringView(Tz::kCompanyName).toString()'
+Assert-Contains 'Telegram\SourceFiles\core\crash_report_window.cpp' 'Tz::kInternalPublicUrl'
+Assert-Contains 'Telegram\SourceFiles\core\mime_type.cpp' 'Tz::kCompanyName'
+Assert-Contains 'Telegram\SourceFiles\export\output\export_output_html.cpp' 'Tz::VisibleBrandUtf8'
+Assert-Contains 'Telegram\SourceFiles\export\output\export_output_json.cpp' 'Tz::VisibleBrandUtf8'
+Assert-Contains 'Telegram\SourceFiles\mtproto\mtproto_config.h' 'https://tg.tianze8.cc/'
 
 Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppName = "TZ"_cs'
 Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppFile = "TZ"_cs'
@@ -64,6 +95,11 @@ Assert-Contains 'Telegram\SourceFiles\window\main_window.cpp' 'AppName.utf16()'
 Assert-Contains 'Telegram\SourceFiles\core\application.cpp' '.protocol = u"tz"_q'
 Assert-NotContains 'Telegram\SourceFiles\core\application.cpp' '.protocol = u"tg"_q'
 Assert-Contains 'Telegram\SourceFiles\platform\win\specific_win.cpp' 'Core::Application::UnregisterUrlScheme()'
+Assert-Contains 'Telegram\SourceFiles\core\local_url_handlers.cpp' 'tg://join?invite='
+Assert-Contains 'Telegram\SourceFiles\dialogs\dialogs_widget.cpp' 'application/x-telegram-dialog'
+Assert-Contains 'Telegram\SourceFiles\payments\ui\payments_panel.cpp' 'TelegramWebviewProxy'
+Assert-Contains 'Telegram\SourceFiles\lang\lang_instance.cpp' '"tdesktop"_cs'
+Assert-Contains 'Telegram\SourceFiles\core\crash_report_window.cpp' '.telegramcrash'
 
 Assert-Contains 'Telegram\SourceFiles\mtproto\mtproto_dc_options.cpp' '{ 2, "47.79.233.204", 2398 }'
 Assert-NotContains 'Telegram\SourceFiles\mtproto\mtproto_dc_options.cpp' '149.154.'

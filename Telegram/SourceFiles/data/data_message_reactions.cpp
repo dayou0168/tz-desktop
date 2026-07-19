@@ -33,6 +33,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "storage/localimageloader.h"
 #include "ui/image/image_location_factory.h"
 #include "ui/animated_icon.h"
+#include "tz/tz_client_contract.h"
 #include "mtproto/mtproto_config.h"
 #include "base/timer_rpl.h"
 #include "base/call_delayed.h"
@@ -1590,7 +1591,7 @@ not_null<Reaction*> Reactions::lookupPaid() {
 		const auto select = generate(u"star_reaction_select"_q);
 		_paid.emplace(Reaction{
 			.id = ReactionId::Paid(),
-			.title = u"Telegram Star"_q,
+			.title = QStringView(Tz::kCompanyName).toString() + u" Star"_q,
 			.appearAnimation = appear,
 			.selectAnimation = select,
 			.centerIcon = center,

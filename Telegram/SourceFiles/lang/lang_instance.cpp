@@ -802,13 +802,13 @@ rpl::producer<> Updated() {
 }
 
 QString GetNonDefaultValue(const QByteArray &key) {
-	return GetInstance().getNonDefaultValue(key);
+	return Tz::VisibleBrandText(GetInstance().getNonDefaultValue(key));
 }
 
 namespace details {
 
 QString Current(ushort key) {
-	return GetInstance().getValue(key);
+	return Tz::VisibleBrandText(GetInstance().getValue(key));
 }
 
 rpl::producer<QString> Value(ushort key) {

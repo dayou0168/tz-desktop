@@ -9,6 +9,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 
 #include "core/utils.h"
 #include "ui/image/image_prepare.h"
+#include "tz/tz_client_contract.h"
 
 #include <QtCore/QMimeDatabase>
 #include <QtCore/QMimeData>
@@ -66,7 +67,8 @@ QStringList MimeType::globPatterns() const {
 QString MimeType::filterString() const {
 	switch (_type) {
 	case Known::WebP: return u"WebP image (*.webp)"_q;
-	case Known::Tgs: return u"Telegram sticker (*.tgs)"_q;
+	case Known::Tgs: return u"%1 sticker (*.tgs)"_q.arg(
+		QStringView(Tz::kCompanyName).toString());
 	case Known::Tgv: return u"Wallpaper pattern (*.tgv)"_q;
 	case Known::TDesktopTheme: return u"Theme files (*.tdesktop-theme)"_q;
 	case Known::TDesktopPalette: return u"Palette files (*.tdesktop-palette)"_q;

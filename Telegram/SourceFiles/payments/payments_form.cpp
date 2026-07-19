@@ -32,6 +32,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "apiwrap.h"
 #include "api/api_text_entities.h"
 #include "core/core_cloud_password.h"
+#include "tz/tz_client_contract.h"
 #include "window/themes/window_theme.h"
 #include "webview/webview_interface.h"
 #include "styles/style_payments.h" // paymentsThumbnailSize.
@@ -1195,7 +1196,7 @@ void Form::validateCard(
 	}
 	auto configuration = Stripe::PaymentConfiguration{
 		.publishableKey = method.publishableKey,
-		.companyName = "Telegram",
+		.companyName = QStringView(Tz::kCompanyName).toString(),
 	};
 	_stripe = std::make_unique<Stripe::APIClient>(std::move(configuration));
 	auto card = Stripe::CardParams{

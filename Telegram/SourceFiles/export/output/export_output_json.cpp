@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "export/output/export_output_json.h"
 
+#include "tz/tz_client_contract.h"
+
 #include "export/output/export_output_result.h"
 #include "export/data/export_data_types.h"
 #include "core/utils.h"
@@ -1576,7 +1578,8 @@ Result JsonWriter::writeSessions(const Data::SessionsList &data) {
 			{ "last_region", SerializeString(session.region) },
 			{
 				"application_name",
-				StringAllowNull(session.applicationName)
+				StringAllowNull(Tz::VisibleBrandUtf8(
+					session.applicationName))
 			},
 			{
 				"application_version",

@@ -43,11 +43,11 @@ inline QString SecureAcceptError() {
 }
 
 inline QString PassportCorrupted() {
-	return u"It seems your Telegram Passport data was corrupted.\n\nYou can reset your Telegram Passport and restart this authorization."_q;
+	return u"It seems your 天泽集团 Passport data was corrupted.\n\nYou can reset your 天泽集团 Passport and restart this authorization."_q;
 }
 
 inline QString PassportCorruptedChange() {
-	return u"It seems your Telegram Passport data was corrupted.\n\nYou can reset your Telegram Passport and change your cloud password."_q;
+	return u"It seems your 天泽集团 Passport data was corrupted.\n\nYou can reset your 天泽集团 Passport and change your cloud password."_q;
 }
 
 inline QString PassportCorruptedReset() {
@@ -55,7 +55,7 @@ inline QString PassportCorruptedReset() {
 }
 
 inline QString PassportCorruptedResetSure() {
-	return u"Are you sure you want to reset your Telegram Passport data?"_q;
+	return u"Are you sure you want to reset your 天泽集团 Passport data?"_q;
 }
 
 inline QString UnknownSecureScanError() {

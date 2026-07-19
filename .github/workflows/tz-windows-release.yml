@@ -186,6 +186,23 @@ jobs:
           }
           Move-Item -LiteralPath $setup -Destination (Join-Path $stage (Split-Path $setup -Leaf))
 
+          $debugBaseline = 470681088L
+          $maximumReleaseBytes = [long][Math]::Floor($debugBaseline * 0.70)
+          $releaseExe = Join-Path $runtime 'TZ.exe'
+          $releaseSetup = Join-Path $stage "TZ-$env:TZ_VERSION-Setup.exe"
+          $sizeLines = foreach ($path in @($releaseExe, $releaseSetup)) {
+            $item = Get-Item -LiteralPath $path
+            if ($item.Length -ge $maximumReleaseBytes) {
+              throw "$($item.Name) is not significantly smaller than the Debug baseline: $($item.Length) bytes (limit $maximumReleaseBytes)."
+            }
+            $reduction = [Math]::Round((1 - ($item.Length / $debugBaseline)) * 100, 2)
+            "$($item.Name)`t$($item.Length)`t${reduction}% smaller than Debug"
+          }
+          @(
+            "Debug baseline`t$debugBaseline",
+            "Required maximum`t$maximumReleaseBytes"
+          ) + $sizeLines | Set-Content -LiteralPath (Join-Path $stage 'size-comparison.txt') -Encoding ascii
+
           $hashTargets = @(
             (Join-Path $runtime 'TZ.exe'),
             (Join-Path $runtime 'modules\x64\d3d\d3dcompiler_47.dll'),
@@ -206,6 +223,7 @@ jobs:
             tz-release/runtime/TZ.exe
             tz-release/runtime/modules/x64/d3d/d3dcompiler_47.dll
             tz-release/runtime-manifest.txt
+            tz-release/size-comparison.txt
             tz-release/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 9
@@ -226,6 +244,7 @@ jobs:
           path: |
             tz-release/TZ-1.0.1-Setup.exe
             tz-release/runtime-manifest.txt
+            tz-release/size-comparison.txt
             tz-release/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
@@ -241,6 +260,7 @@ jobs:
             'tz-release/runtime/TZ.exe',
             'tz-release/TZ-1.0.1-Setup.exe',
             'tz-release/runtime-manifest.txt',
+            'tz-release/size-comparison.txt',
             'tz-release/SHA256SUMS.txt'
           )
           gh release view $env:GITHUB_REF_NAME *> $null

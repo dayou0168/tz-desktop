@@ -262,6 +262,7 @@ void psDoCleanup() {
 		Platform::AutostartToggle(false);
 		psSendToMenu(false, true);
 		AppUserModelId::CleanupShortcut();
+		Core::Application::UnregisterUrlScheme();
 		DeleteMyModules();
 	} catch (...) {
 	}

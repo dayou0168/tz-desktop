@@ -8,13 +8,13 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_phone.h"
 
 #include "lang/lang_keys.h"
-#include "intro/intro_code.h"
-#include "intro/intro_email.h"
 #include "intro/intro_qr.h"
+#include "tz/tz_client_contract.h"
 #include "styles/style_intro.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
 #include "ui/wrap/fade_wrap.h"
+#include "ui/widgets/fields/password_input.h"
 #include "ui/widgets/fields/special_fields.h"
 #include "main/main_account.h"
 #include "main/main_domain.h"
@@ -43,6 +43,132 @@ namespace {
 [[nodiscard]] QString DigitsOnly(QString value) {
 	static const auto RegExp = QRegularExpression("[^0-9]");
 	return value.replace(RegExp, QString());
+}
+
+class PasswordLoginWidget final : public Step {
+public:
+	PasswordLoginWidget(
+		QWidget *parent,
+		not_null<Main::Account*> account,
+		not_null<Data*> data);
+
+	void setInnerFocus() override;
+	void activate() override;
+	void cancelled() override;
+	void submit() override;
+	rpl::producer<QString> nextButtonText() const override;
+
+	bool hasBack() const override {
+		return true;
+	}
+
+protected:
+	void resizeEvent(QResizeEvent *e) override;
+
+private:
+	void submitDone(const MTPauth_Authorization &result);
+	void submitFail(const MTP::Error &error);
+	void showPasswordError(QStringView text);
+
+	object_ptr<Ui::PasswordInput> _password;
+	mtpRequestId _sentRequest = 0;
+};
+
+PasswordLoginWidget::PasswordLoginWidget(
+	QWidget *parent,
+	not_null<Main::Account*> account,
+	not_null<Data*> data)
+: Step(parent, account, data)
+, _password(
+	this,
+	st::introPassword,
+	rpl::single(QStringView(Tz::kLoginPasswordPlaceholder).toString())) {
+	setTitleText(rpl::single(
+		QStringView(Tz::kLoginPasswordTitle).toString()));
+	setDescriptionText(rpl::single(
+		QStringView(Tz::kLoginPasswordDescription).toString()));
+	connect(_password, &Ui::PasswordInput::changed, [=] {
+		hideError();
+	});
+	connect(_password, &Ui::PasswordInput::submitted, [=] {
+		submit();
+	});
+}
+
+void PasswordLoginWidget::resizeEvent(QResizeEvent *e) {
+	Step::resizeEvent(e);
+	_password->moveToLeft(contentLeft(), contentTop() + st::introPasswordTop);
+}
+
+void PasswordLoginWidget::setInnerFocus() {
+	_password->setFocusFast();
+}
+
+void PasswordLoginWidget::activate() {
+	Step::activate();
+	_password->show();
+	setInnerFocus();
+}
+
+void PasswordLoginWidget::cancelled() {
+	api().request(base::take(_sentRequest)).cancel();
+}
+
+void PasswordLoginWidget::showPasswordError(QStringView text) {
+	showError(rpl::single(text.toString()));
+	_password->showError();
+	_password->setFocus();
+}
+
+void PasswordLoginWidget::submitDone(const MTPauth_Authorization &result) {
+	_sentRequest = 0;
+	_password->setEnabled(true);
+	finish(result);
+}
+
+void PasswordLoginWidget::submitFail(const MTP::Error &error) {
+	_sentRequest = 0;
+	_password->setEnabled(true);
+	if (MTP::IsFloodError(error)) {
+		showError(tr::lng_flood_error());
+		_password->showError();
+		_password->setFocus();
+	} else if (error.type() == u"PASSWORD_HASH_INVALID"_q) {
+		showPasswordError(QStringView(Tz::kLoginIdentityOrPasswordError));
+		_password->selectAll();
+	} else if (!MTP::IgnoreError(error)) {
+		showError(rpl::single(error.type()));
+		_password->setFocus();
+	}
+}
+
+void PasswordLoginWidget::submit() {
+	if (_sentRequest || isHidden()) {
+		return;
+	}
+	const auto password = _password->getLastText();
+	if (!Tz::LoginPasswordAccepted(password)) {
+		showPasswordError(QStringView(Tz::kLoginPasswordTooShort));
+		return;
+	}
+
+	hideError();
+	_password->setEnabled(false);
+	_sentRequest = api().request(MTPauth_SignIn(
+		MTP_flags(MTPauth_SignIn::Flag::f_phone_code),
+		MTP_string(getData()->phone),
+		MTP_bytes(getData()->phoneHash),
+		MTP_string(password),
+		MTP_emailVerificationCode(MTP_string(QString()))
+	)).done([=](const MTPauth_Authorization &result) {
+		submitDone(result);
+	}).fail([=](const MTP::Error &error) {
+		submitFail(error);
+	}).handleFloodErrors().send();
+}
+
+rpl::producer<QString> PasswordLoginWidget::nextButtonText() const {
+	return tr::lng_intro_submit();
 }
 
 } // namespace
@@ -241,21 +367,9 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	_sentRequest = 0;
 
 	result.match([&](const MTPDauth_sentCode &data) {
-		fillSentCodeData(data);
 		getData()->phone = DigitsOnly(_sentPhone);
 		getData()->phoneHash = qba(data.vphone_code_hash());
-		if (getData()->emailStatus == EmailStatus::SetupRequired) {
-			return goNext<EmailWidget>();
-		}
-		const auto next = data.vnext_type();
-		if (next && next->type() == mtpc_auth_codeTypeCall) {
-			getData()->callStatus = CallStatus::Waiting;
-			getData()->callTimeout = data.vtimeout().value_or(60);
-		} else {
-			getData()->callStatus = CallStatus::Disabled;
-			getData()->callTimeout = 0;
-		}
-		goNext<CodeWidget>();
+		goNext<PasswordLoginWidget>();
 	}, [&](const MTPDauth_sentCodeSuccess &data) {
 		finish(data.vauthorization());
 	}, [](const MTPDauth_sentCodePaymentRequired &) {

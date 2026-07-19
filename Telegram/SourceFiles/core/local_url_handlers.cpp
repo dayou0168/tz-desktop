@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "core/local_url_handlers.h"
 
+#include "tz/tz_client_contract.h"
+
 #include "core/deep_links/deep_links_router.h"
 #include "api/api_confirm_phone.h"
 #include "api/api_chat_filters.h"
@@ -1880,6 +1882,9 @@ const std::vector<LocalUrlHandler> &InternalUrlHandlers() {
 QString TryConvertUrlToLocal(QString url) {
 	if (url.size() > 8192) {
 		url = url.mid(0, 8192);
+	}
+	if (const auto converted = Tz::ConvertInternalInviteUrl(url); converted != url) {
+		return converted;
 	}
 
 	using namespace qthelp;

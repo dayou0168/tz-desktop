@@ -27,5 +27,40 @@ int main() {
 	if (QStringView(Tz::kDefaultLanguageId) != QStringView(u"zh-hans")) {
 		return 8;
 	}
+	if (Tz::LoginPasswordAccepted(QStringView(u"1234567"))) {
+		return 9;
+	}
+	if (!Tz::LoginPasswordAccepted(QStringView(u"12345678"))) {
+		return 10;
+	}
+	if (!Tz::LoginPasswordAccepted(QStringView(u"密码密码密码密码密码密码密码密码"))) {
+		return 11;
+	}
+	if (Tz::LoginPasswordAccepted(QStringView(u"😀😀😀😀😀😀😀"))) {
+		return 12;
+	}
+	if (!Tz::LoginPasswordAccepted(QStringView(u"😀😀😀😀😀😀😀😀"))) {
+		return 13;
+	}
+	if (Tz::ConvertInternalInviteUrl(
+			QStringView(u"tz://join?invite=Abc_1-2.3").toString())
+			!= QStringView(u"tg://join?invite=Abc_1-2.3").toString()) {
+		return 14;
+	}
+	if (Tz::ConvertInternalInviteUrl(
+			QStringView(u"https://tg.tianze8.cc/+Abc_1-2.3").toString())
+			!= QStringView(u"tg://join?invite=Abc_1-2.3").toString()) {
+		return 15;
+	}
+	if (Tz::ConvertInternalInviteUrl(
+			QStringView(u"https://example.com/+Abc_1-2.3").toString())
+			!= QStringView(u"https://example.com/+Abc_1-2.3").toString()) {
+		return 16;
+	}
+	if (Tz::ConvertInternalInviteUrl(
+			QStringView(u"tz://join?invite=bad/value").toString())
+			!= QStringView(u"tz://join?invite=bad/value").toString()) {
+		return 17;
+	}
 	return 0;
 }

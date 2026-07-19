@@ -134,7 +134,7 @@ void SetCrashAnnotationsGL() {
 base::options::toggle OptionSkipUrlSchemeRegister({
 	.id = kOptionSkipUrlSchemeRegister,
 	.name = "Skip URL scheme register",
-	.description = "Don't re-register tg:// URL scheme on autoupdate.",
+	.description = "Don't re-register tz:// URL scheme on autoupdate.",
 });
 
 } // namespace
@@ -274,8 +274,8 @@ void Application::run() {
 
 	refreshGlobalProxy(); // Depends on app settings being read.
 
+	autoRegisterUrlScheme();
 	if (const auto old = Local::oldSettingsVersion(); old < AppVersion) {
-		autoRegisterUrlScheme();
 		Platform::NewVersionLaunched(old);
 	}
 
@@ -1912,20 +1912,27 @@ void Application::RegisterUrlScheme() {
 	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
 		.executable = Platform::ExecutablePathForShortcuts(),
 		.arguments = arguments,
-		.protocol = u"tg"_q,
-		.protocolName = u"Telegram Link"_q,
-		.shortAppName = u"tdesktop"_q,
+		.protocol = u"tz"_q,
+		.protocolName = u"TZ Link"_q,
+		.shortAppName = u"tianze.TZ"_q,
 		.longAppName = QCoreApplication::applicationName(),
 		.displayAppName = AppName.utf16(),
 		.displayAppDescription = AppName.utf16(),
 	});
 
-	base::Platform::RegisterUrlScheme(base::Platform::UrlSchemeDescriptor{
+}
+
+void Application::UnregisterUrlScheme() {
+	const auto arguments = Launcher::Instance().customWorkingDir()
+		? u"-workdir \"%1\""_q.arg(cWorkingDir())
+		: QString();
+
+	base::Platform::UnregisterUrlScheme(base::Platform::UrlSchemeDescriptor{
 		.executable = Platform::ExecutablePathForShortcuts(),
 		.arguments = arguments,
-		.protocol = u"tonsite"_q,
-		.protocolName = u"TonSite Link"_q,
-		.shortAppName = u"tdesktop"_q,
+		.protocol = u"tz"_q,
+		.protocolName = u"TZ Link"_q,
+		.shortAppName = u"tianze.TZ"_q,
 		.longAppName = QCoreApplication::applicationName(),
 		.displayAppName = AppName.utf16(),
 		.displayAppDescription = AppName.utf16(),

@@ -4,6 +4,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $companyName = -join [char[]](0x5929, 0x6CFD, 0x96C6, 0x56E2)
+$identityOrPasswordError = -join [char[]](0x8D26, 0x53F7, 0x6216, 0x5BC6, 0x7801, 0x9519, 0x8BEF)
 
 function Read-RepositoryFile([string]$RelativePath) {
     return [IO.File]::ReadAllText((Join-Path $RepositoryRoot $RelativePath))
@@ -30,7 +31,18 @@ function Assert-NotContains(
 }
 
 Assert-Contains 'Telegram\SourceFiles\intro\intro_signup.cpp' 'Tz::SignupNamesAccepted(firstName, lastName)'
+Assert-Contains 'Telegram\SourceFiles\intro\intro_phone.cpp' 'goNext<PasswordLoginWidget>()'
+Assert-NotContains 'Telegram\SourceFiles\intro\intro_phone.cpp' 'goNext<CodeWidget>()'
+Assert-Contains 'Telegram\SourceFiles\intro\intro_phone.cpp' 'MTPauth_SignIn('
+Assert-Contains 'Telegram\SourceFiles\intro\intro_phone.cpp' 'MTP_string(password)'
+Assert-Contains 'Telegram\SourceFiles\intro\intro_phone.cpp' 'PASSWORD_HASH_INVALID'
+Assert-NotContains 'Telegram\SourceFiles\intro\intro_phone.cpp' 'MTPauth_ResendCode'
+Assert-NotContains 'Telegram\SourceFiles\intro\intro_phone.cpp' 'MTPauth_CheckPassword'
 Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'return !firstName.trimmed().isEmpty();'
+Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'kLoginPasswordMinimumCodePoints = 8'
+Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' ('u"' + $identityOrPasswordError + '"')
+Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'u"tz://join?invite="'
+Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'u"https://tg.tianze8.cc/+"'
 Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'kDefaultLanguageId = u"zh-hans"'
 Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'kCompatibleLegacyStorageVersion = 6008004'
 Assert-Contains 'Telegram\SourceFiles\lang\lang_keys.cpp' 'QStringView(Tz::kDefaultLanguageId).toString()'
@@ -49,6 +61,9 @@ Assert-Contains 'Telegram\build\setup.iss' '#define MyAppExeName "TZ.exe"'
 Assert-Contains 'Telegram\build\setup.iss' ('#define MyAppPublisher "' + $companyName + '"')
 Assert-Contains 'Telegram\SourceFiles\platform\win\windows_app_user_model_id.cpp' 'L"tianze.TZ"'
 Assert-Contains 'Telegram\SourceFiles\window\main_window.cpp' 'AppName.utf16()'
+Assert-Contains 'Telegram\SourceFiles\core\application.cpp' '.protocol = u"tz"_q'
+Assert-NotContains 'Telegram\SourceFiles\core\application.cpp' '.protocol = u"tg"_q'
+Assert-Contains 'Telegram\SourceFiles\platform\win\specific_win.cpp' 'Core::Application::UnregisterUrlScheme()'
 
 Assert-Contains 'Telegram\SourceFiles\mtproto\mtproto_dc_options.cpp' '{ 2, "47.79.233.204", 2398 }'
 Assert-NotContains 'Telegram\SourceFiles\mtproto\mtproto_dc_options.cpp' '149.154.'

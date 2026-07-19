@@ -345,6 +345,7 @@ public:
 	bool screenIsLocked() const;
 
 	static void RegisterUrlScheme();
+	static void UnregisterUrlScheme();
 
 protected:
 	bool eventFilter(QObject *object, QEvent *event) override;

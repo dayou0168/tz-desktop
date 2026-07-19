@@ -98,5 +98,9 @@ int main() {
 			!= QStringView(u"Hide {telegram}").toString()) {
 		return 24;
 	}
+	if (Tz::VisibleBrandText(QStringView(u"Open Telegram").toString())
+			!= QStringView(u"Open 天泽集团").toString()) {
+		return 25;
+	}
 	return 0;
 }

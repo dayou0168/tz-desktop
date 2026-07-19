@@ -161,14 +161,15 @@ inline constexpr auto kLoginIdentityOrPasswordError = u"账号或密码错误";
 				break;
 			}
 			const auto end = position + brand.size();
+			const auto endIndex = static_cast<int>(end);
 			const auto startsInsideIdentifier = (position > 0)
 				&& IsVisibleBrandIdentifierCharacter(text[position - 1]);
 			const auto endsInsideIdentifier = (end < text.size())
-				&& IsVisibleBrandIdentifierCharacter(text[end]);
+				&& IsVisibleBrandIdentifierCharacter(text[endIndex]);
 			const auto isPlaceholder = (position > 0)
 				&& (end < text.size())
 				&& (text[position - 1] == '{')
-				&& (text[end] == '}');
+				&& (text[endIndex] == '}');
 			if (!startsInsideIdentifier
 				&& !endsInsideIdentifier
 				&& !isPlaceholder

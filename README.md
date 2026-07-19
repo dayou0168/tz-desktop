@@ -1,3 +1,15 @@
+# TZ Desktop 1.0.1
+
+TZ Desktop is the Windows client for the Tianze private messaging service.
+
+- Server and Admin source: https://github.com/dayou0168/tz-server
+- Windows Release workflow and assets: https://github.com/dayou0168/tz-desktop/releases
+- Upstream project: https://github.com/telegramdesktop/tdesktop
+
+The distributable Windows package is built as Release x64. Debug binaries, PDB files, source files, object files, build logs, test harnesses, and the upstream Telegram updater are not included in the installer. PDB files are retained only as a separate development artifact.
+
+---
+
 # [Telegram Desktop][telegram_desktop] – Official Messenger
 
 This is the complete source code and the build instructions for the official [Telegram][telegram] messenger desktop client, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.

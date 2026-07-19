@@ -21,7 +21,7 @@ OutputDir={#ReleasePath}
 SetupIconFile={#SourcePath}..\Resources\art\icon256.ico
 UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\{#MyAppExeName}
-Compression=lzma
+Compression=lzma2/ultra64
 SolidCompression=yes
 DisableStartupPrompt=yes
 PrivilegesRequired=lowest
@@ -30,7 +30,9 @@ CloseApplications=force
 DisableDirPage=no
 DisableProgramGroupPage=no
 WizardStyle=modern
+#ifdef TZEnableSigning
 SignTool=sha256
+#endif
 
 #if MyBuildTarget == "winarm"
   ArchitecturesAllowed="arm64"
@@ -40,7 +42,7 @@ SignTool=sha256
 #elif MyBuildTarget == "win64"
   ArchitecturesAllowed="x64compatible"
   ArchitecturesInstallIn64BitMode="x64compatible"
-  OutputBaseFilename=TZSetup-x64.{#MyAppVersionFull}
+  OutputBaseFilename=TZ-{#MyAppVersionFull}-Setup
   #define ArchModulesFolder "x64"
   AppVerName={#MyAppName} {#MyAppVersion} 64bit
 #else
@@ -67,7 +69,9 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "{#ReleasePath}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+#ifdef TZIncludeUpdater
 Source: "{#ReleasePath}\Updater.exe"; DestDir: "{app}"; Flags: ignoreversion
+#endif
 #if MyBuildTarget != "winarm"
 Source: "{#ReleasePath}\{#ModulesFolder}\d3d\d3dcompiler_47.dll"; DestDir: "{app}\{#ModulesFolder}\d3d"; Flags: ignoreversion
 #endif

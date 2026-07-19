@@ -475,9 +475,12 @@ win:
         make ^
         mingw-w64-x86_64-diffutils ^
         mingw-w64-x86_64-gperf ^
-        mingw-w64-x86_64-nasm ^
         mingw-w64-x86_64-perl ^
         mingw-w64-x86_64-pkgconf
+
+    powershell -Command "iwr -OutFile ./nasm-2.16.03-1-x86_64.pkg.tar.zst https://mirror.msys2.org/msys/x86_64/nasm-2.16.03-1-x86_64.pkg.tar.zst; if ((Get-FileHash -Algorithm SHA256 ./nasm-2.16.03-1-x86_64.pkg.tar.zst).Hash -ne 'E5F54D79B94C0290579C20D092603DC97289887BA1C281AC0AF88626BFBF1CAB') { throw 'NASM package SHA256 mismatch' }"
+    pacman -U --noconfirm nasm-2.16.03-1-x86_64.pkg.tar.zst
+    del nasm-2.16.03-1-x86_64.pkg.tar.zst
 """, 'ThirdParty')
 
 stage('python', """

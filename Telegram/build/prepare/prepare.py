@@ -480,7 +480,8 @@ win:
         mingw-w64-x86_64-perl ^
         mingw-w64-x86_64-pkgconf
 
-    powershell -NoProfile -Command "$ErrorActionPreference='Stop'; $File='./nasm-2.16.03-1-x86_64.pkg.tar.zst'; for ($Attempt=1; $Attempt -le 5; $Attempt++) { try { Invoke-WebRequest -UseBasicParsing -Uri 'https://mirror.msys2.org/msys/x86_64/nasm-2.16.03-1-x86_64.pkg.tar.zst' -OutFile $File; break } catch { if ($Attempt -eq 5) { throw }; Start-Sleep -Seconds 5 } }; if (-not (Test-Path -LiteralPath $File -PathType Leaf)) { throw 'NASM package download missing' }; if ((Get-FileHash -Algorithm SHA256 -LiteralPath $File).Hash -ne 'E5F54D79B94C0290579C20D092603DC97289887BA1C281AC0AF88626BFBF1CAB') { throw 'NASM package SHA256 mismatch' }"
+    curl.exe --fail --location --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 --output nasm-2.16.03-1-x86_64.pkg.tar.zst https://mirror.msys2.org/msys/x86_64/nasm-2.16.03-1-x86_64.pkg.tar.zst
+    powershell -NoProfile -Command "if ((Get-FileHash -Algorithm SHA256 -LiteralPath './nasm-2.16.03-1-x86_64.pkg.tar.zst').Hash -ne 'E5F54D79B94C0290579C20D092603DC97289887BA1C281AC0AF88626BFBF1CAB') { throw 'NASM package SHA256 mismatch' }"
     pacman -U --noconfirm nasm-2.16.03-1-x86_64.pkg.tar.zst
     del nasm-2.16.03-1-x86_64.pkg.tar.zst
 """, 'ThirdParty')

@@ -15,6 +15,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "lang/lang_tag.h" // kTextCommandLangTag.
 #include "base/platform/base_platform_info.h"
 #include "base/qthelp_regex.h"
+#include "tz/tz_client_contract.h"
 
 namespace Lang {
 namespace {
@@ -224,11 +225,11 @@ QString CustomLanguageId() {
 
 Language DefaultLanguage() {
 	return Language{
-		u"en"_q,
+		QStringView(Tz::kDefaultLanguageId).toString(),
 		QString(),
 		QString(),
-		u"English"_q,
-		u"English"_q,
+		u"Chinese (Simplified)"_q,
+		u"简体中文"_q,
 	};
 }
 
@@ -236,7 +237,11 @@ struct Instance::PrivateTag {
 };
 
 Instance::Instance()
-: _values(PrepareDefaultValues())
+: _id(DefaultLanguageId())
+, _pluralId(DefaultLanguageId())
+, _name(u"Chinese (Simplified)"_q)
+, _nativeName(u"简体中文"_q)
+, _values(PrepareDefaultValues())
 , _nonDefaultSet(kKeysCount, 0) {
 }
 

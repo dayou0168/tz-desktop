@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "base/platform/base_platform_file_utilities.h"
 #include "base/openssl_help.h"
 #include "base/random.h"
+#include "tz/tz_client_contract.h"
 
 #include <crl/crl_object_on_thread.h>
 #include <QtCore/QtEndian>
@@ -534,7 +535,8 @@ bool ReadFile(
 				).arg(name));
 			continue;
 		}
-		if (version > AppVersion) {
+		if (version > AppVersion
+			&& version != Tz::kCompatibleLegacyStorageVersion) {
 			DEBUG_LOG(("App Info: version too big %1 for '%2', my version %3"
 				).arg(version
 				).arg(name

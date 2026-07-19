@@ -166,6 +166,10 @@ CloudManager::CloudManager(Instance &langpack)
 		*mtpLifetime = account->mtpMainSessionValue(
 		) | rpl::on_next([=](not_null<MTP::Instance*> instance) {
 			_api.emplace(instance);
+			if (_langpack.id() == DefaultLanguageId()
+				&& _langpack.version(Pack::Current) == 0) {
+				requestLangPackDifference(Pack::Current);
+			}
 			resendRequests();
 		});
 	}, [=] {

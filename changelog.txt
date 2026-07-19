@@ -1,3 +1,8 @@
+1.0.1 (19.07.26)
+
+- Set the TZ Windows client brand and default Simplified Chinese language.
+- Allow registration without a last name while keeping the first name required.
+
 6.8.4 beta (27.05.26)
 
 - Drag-and-drop of photos into chats.

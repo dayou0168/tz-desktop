@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "storage/localstorage.h"
 
+#include "tz/tz_client_contract.h"
+
 #include "storage/serialize_common.h"
 #include "storage/storage_account.h"
 #include "storage/details/storage_file_utilities.h"
@@ -159,7 +161,8 @@ bool _readOldSettings(bool remove, ReadSettingsContext &context) {
 				stream >> version;
 				if (!CheckStreamStatus(stream)) break;
 
-				if (version > AppVersion) break;
+				if (version > AppVersion
+					&& version != Tz::kCompatibleLegacyStorageVersion) break;
 			} else if (!ReadSetting(blockId, stream, version, context)) {
 				break;
 			}
@@ -191,7 +194,8 @@ void _readOldUserSettingsFields(
 				break;
 			}
 
-			if (version > AppVersion) return;
+			if (version > AppVersion
+				&& version != Tz::kCompatibleLegacyStorageVersion) return;
 		} else if (blockId == dbiEncryptedWithSalt) {
 			QByteArray salt, data, decrypted;
 			stream >> salt >> data;
@@ -274,7 +278,8 @@ void _readOldMtpDataFields(
 				break;
 			}
 
-			if (version > AppVersion) return;
+			if (version > AppVersion
+				&& version != Tz::kCompatibleLegacyStorageVersion) return;
 		} else if (blockId == dbiEncrypted) {
 			QByteArray data, decrypted;
 			stream >> data;

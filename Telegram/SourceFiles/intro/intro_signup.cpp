@@ -18,6 +18,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "ui/widgets/labels.h"
 #include "styles/style_intro.h"
 #include "styles/style_boxes.h"
+#include "tz/tz_client_contract.h"
 
 namespace Intro {
 namespace details {
@@ -155,29 +156,21 @@ void SignupWidget::submit() {
 	if (_sentRequest) {
 		return;
 	}
-	if (_invertOrder) {
-		if ((_last->hasFocus() || _last->getLastText().trimmed().length()) && !_first->getLastText().trimmed().length()) {
-			_first->setFocus();
-			return;
-		} else if (!_last->getLastText().trimmed().length()) {
-			_last->setFocus();
-			return;
-		}
-	} else {
-		if ((_first->hasFocus() || _first->getLastText().trimmed().length()) && !_last->getLastText().trimmed().length()) {
-			_last->setFocus();
-			return;
-		} else if (!_first->getLastText().trimmed().length()) {
-			_first->setFocus();
-			return;
-		}
+	const auto firstName = _first->getLastText().trimmed();
+	const auto lastName = _last->getLastText().trimmed();
+	if (!Tz::SignupNamesAccepted(firstName, lastName)) {
+		_first->setFocus();
+		return;
+	} else if (!_invertOrder && _first->hasFocus() && lastName.isEmpty()) {
+		_last->setFocus();
+		return;
 	}
 
 	const auto send = [&] {
 		hideError();
 
-		_firstName = _first->getLastText().trimmed();
-		_lastName = _last->getLastText().trimmed();
+		_firstName = firstName;
+		_lastName = lastName;
 		_sentRequest = api().request(MTPauth_SignUp(
 			MTP_flags(0),
 			MTP_string(getData()->phone),

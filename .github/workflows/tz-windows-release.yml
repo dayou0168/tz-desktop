@@ -19,8 +19,8 @@ permissions:
   contents: read
 
 jobs:
-  windows-release-x64:
-    name: Windows Release x64
+  build-windows-x64:
+    name: Build Windows Release x64
     runs-on: ${{ (github.event_name == 'workflow_dispatch' && inputs.runner) || 'windows-2022' }}
     timeout-minutes: 355
 
@@ -53,9 +53,7 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or -not $vsPath) { throw 'Visual Studio 2022 C++ tools were not found.' }
           "VS_PATH=$vsPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           $toolset = (Get-Content -LiteralPath (Join-Path $vsPath 'VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt') -Raw).Trim()
-          $image = if ($env:ImageVersion) { $env:ImageVersion } else { 'self-hosted' }
           "TZ_MSVC_TOOLSET=$toolset" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "TZ_RUNNER_IMAGE=$image" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Restore Release dependencies
         id: deps-cache
@@ -65,10 +63,21 @@ jobs:
           path: |
             ${{ env.BUILD_ROOT }}\Libraries
             ${{ env.BUILD_ROOT }}\ThirdParty
-          key: tz-deps-windows-x64-${{ env.TZ_RUNNER_IMAGE }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-python-3.10-${{ hashFiles('build-root/tdesktop/Telegram/build/prepare/**', 'build-root/tdesktop/.gitmodules', 'build-root/tdesktop/Telegram/.gitmodules') }}
+          key: tz-deps-windows-x64-msvc-${{ env.TZ_MSVC_TOOLSET }}-python-3.10-${{ hashFiles('build-root/tdesktop/Telegram/build/prepare/**', 'build-root/tdesktop/.gitmodules', 'build-root/tdesktop/Telegram/.gitmodules') }}
+
+      - name: Restore legacy Release dependencies
+        id: legacy-deps-cache
+        if: steps.deps-cache.outputs.cache-hit != 'true'
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.BUILD_ROOT }}\Libraries
+            ${{ env.BUILD_ROOT }}\ThirdParty
+          key: tz-deps-windows-x64-20260714.244.1-msvc-${{ env.TZ_MSVC_TOOLSET }}-python-3.10-${{ hashFiles('build-root/tdesktop/Telegram/build/prepare/**', 'build-root/tdesktop/.gitmodules', 'build-root/tdesktop/Telegram/.gitmodules') }}
 
       - name: Prepare Release dependencies
-        if: steps.deps-cache.outputs.cache-hit != 'true'
+        if: steps.deps-cache.outputs.cache-hit != 'true' && steps.legacy-deps-cache.outputs.cache-hit != 'true'
         shell: cmd
         working-directory: '${{ env.BUILD_ROOT }}'
         run: |
@@ -88,7 +97,7 @@ jobs:
           path: |
             ${{ env.BUILD_ROOT }}\Libraries
             ${{ env.BUILD_ROOT }}\ThirdParty
-          key: tz-deps-windows-x64-${{ env.TZ_RUNNER_IMAGE }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-python-3.10-${{ hashFiles('build-root/tdesktop/Telegram/build/prepare/**', 'build-root/tdesktop/.gitmodules', 'build-root/tdesktop/Telegram/.gitmodules') }}
+          key: tz-deps-windows-x64-msvc-${{ env.TZ_MSVC_TOOLSET }}-python-3.10-${{ hashFiles('build-root/tdesktop/Telegram/build/prepare/**', 'build-root/tdesktop/.gitmodules', 'build-root/tdesktop/Telegram/.gitmodules') }}
 
       - name: Configure TZ Release x64
         shell: cmd
@@ -165,32 +174,129 @@ jobs:
             Remove-Item -LiteralPath $buildScript, $monitorScript -Force -ErrorAction SilentlyContinue
           }
 
+          $release = Join-Path $env:BUILD_ROOT 'tdesktop\out\Release'
+          $intermediate = Join-Path $env:GITHUB_WORKSPACE 'artifacts\intermediate'
+          $runtime = Join-Path $intermediate 'runtime'
+          $symbols = Join-Path $intermediate 'symbols'
+          New-Item -ItemType Directory -Path (Join-Path $runtime 'modules\x64\d3d'), $symbols -Force | Out-Null
+          $outputs = @(
+            @{ Source = (Join-Path $release 'TZ.exe'); Destination = (Join-Path $runtime 'TZ.exe') },
+            @{ Source = (Join-Path $release 'modules\x64\d3d\d3dcompiler_47.dll'); Destination = (Join-Path $runtime 'modules\x64\d3d\d3dcompiler_47.dll') },
+            @{ Source = (Join-Path $release 'TZ.pdb'); Destination = (Join-Path $symbols 'TZ.pdb') }
+          )
+          foreach ($output in $outputs) {
+            if (-not (Test-Path -LiteralPath $output.Source -PathType Leaf) -or (Get-Item -LiteralPath $output.Source).Length -le 0) {
+              throw "Required build output is missing or empty: $($output.Source)"
+            }
+            Copy-Item -LiteralPath $output.Source -Destination $output.Destination
+            if (-not (Test-Path -LiteralPath $output.Destination -PathType Leaf) -or (Get-Item -LiteralPath $output.Destination).Length -le 0) {
+              throw "Staged build output is missing or empty: $($output.Destination)"
+            }
+          }
+
+      - name: Upload reusable Windows build outputs
+        uses: actions/upload-artifact@v4
+        with:
+          name: TZ-1.0.1-windows-x64-build
+          path: artifacts/intermediate
+          if-no-files-found: error
+          compression-level: 0
+          overwrite: true
+          retention-days: 14
+
+  package-windows-x64:
+    name: Package Windows Release x64
+    needs: build-windows-x64
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && inputs.runner) || 'windows-2022' }}
+    timeout-minutes: 60
+
+    env:
+      TZ_VERSION: '1.0.1'
+
+    steps:
+      - name: Checkout installer sources
+        uses: actions/checkout@v6
+        with:
+          lfs: false
+          path: packaging-source
+          fetch-depth: 1
+          persist-credentials: false
+          clean: false
+          sparse-checkout: |
+            Telegram/build/setup.iss
+            Telegram/Resources/art/icon256.ico
+          sparse-checkout-cone-mode: false
+
+      - name: Download reusable Windows build outputs
+        uses: actions/download-artifact@v4
+        with:
+          name: TZ-1.0.1-windows-x64-build
+          path: artifacts/intermediate
+
       - name: Build installer and archives
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $release = Join-Path $env:BUILD_ROOT 'tdesktop\out\Release'
-          $artifacts = Join-Path $env:GITHUB_WORKSPACE 'artifacts'
-          $runtime = Join-Path $artifacts 'runtime'
-          $symbols = Join-Path $artifacts 'symbols'
-          New-Item -ItemType Directory -Path (Join-Path $runtime 'modules\x64\d3d'), $symbols -Force | Out-Null
-
-          Copy-Item -LiteralPath (Join-Path $release 'TZ.exe') -Destination (Join-Path $runtime 'TZ.exe')
-          Copy-Item -LiteralPath (Join-Path $release 'modules\x64\d3d\d3dcompiler_47.dll') -Destination (Join-Path $runtime 'modules\x64\d3d\d3dcompiler_47.dll')
-          Copy-Item -LiteralPath (Join-Path $release 'TZ.pdb') -Destination (Join-Path $symbols 'TZ.pdb')
+          $intermediate = Join-Path $env:GITHUB_WORKSPACE 'artifacts\intermediate'
+          $runtime = Join-Path $intermediate 'runtime'
+          $symbols = Join-Path $intermediate 'symbols'
+          $artifacts = Join-Path $env:GITHUB_WORKSPACE 'artifacts\release'
+          $sevenZip = 'C:\Program Files\7-Zip\7z.exe'
+          if (-not (Test-Path -LiteralPath $sevenZip -PathType Leaf)) { throw "7-Zip was not found at $sevenZip" }
+          foreach ($path in @($runtime, $symbols)) {
+            if (-not (Test-Path -LiteralPath $path -PathType Container)) { throw "Required archive input directory was not found: $path" }
+          }
+          foreach ($path in @((Join-Path $runtime 'TZ.exe'), (Join-Path $runtime 'modules\x64\d3d\d3dcompiler_47.dll'), (Join-Path $symbols 'TZ.pdb'))) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -le 0) {
+              throw "Required archive input file is missing or empty: $path"
+            }
+          }
+          New-Item -ItemType Directory -Path $artifacts -Force | Out-Null
 
           $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
           if (-not $iscc) {
             $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
           }
-          $iss = Join-Path $env:BUILD_ROOT 'tdesktop\Telegram\build\setup.iss'
+          if (-not (Test-Path -LiteralPath $iscc -PathType Leaf)) { throw "Inno Setup compiler was not found: $iscc" }
+          $iss = Join-Path $env:GITHUB_WORKSPACE 'packaging-source\Telegram\build\setup.iss'
+          if (-not (Test-Path -LiteralPath $iss -PathType Leaf)) { throw "Inno Setup script was not found: $iss" }
           & $iscc "/dMyAppVersion=$env:TZ_VERSION" "/dMyAppVersionFull=$env:TZ_VERSION" "/dReleasePath=$runtime" '/dMyBuildTarget=win64' $iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
-          $setup = Join-Path $runtime "TZ-$env:TZ_VERSION-Setup.exe"
-          Move-Item -LiteralPath $setup -Destination (Join-Path $artifacts (Split-Path $setup -Leaf))
-          Compress-Archive -Path (Join-Path $runtime '*') -DestinationPath (Join-Path $artifacts "TZ-$env:TZ_VERSION-windows-x64.zip") -CompressionLevel Optimal
-          Compress-Archive -Path (Join-Path $symbols '*') -DestinationPath (Join-Path $artifacts "TZ-$env:TZ_VERSION-symbols.zip") -CompressionLevel Optimal
+          $setupOutput = Join-Path $runtime "TZ-$env:TZ_VERSION-Setup.exe"
+          $setup = Join-Path $artifacts "TZ-$env:TZ_VERSION-Setup.exe"
+          if (-not (Test-Path -LiteralPath $setupOutput -PathType Leaf) -or (Get-Item -LiteralPath $setupOutput).Length -le 0) {
+            throw "Installer is missing or empty: $setupOutput"
+          }
+          Move-Item -LiteralPath $setupOutput -Destination $setup
+
+          $runtimeZip = Join-Path $artifacts "TZ-$env:TZ_VERSION-windows-x64.zip"
+          Push-Location $runtime
+          try {
+            & $sevenZip a '-tzip' '-mx=9' '-mmt=on' $runtimeZip '*'
+            if ($LASTEXITCODE -ne 0) { throw "7-Zip failed to create the runtime ZIP with exit code $LASTEXITCODE" }
+          } finally {
+            Pop-Location
+          }
+
+          $symbolsZip = Join-Path $artifacts "TZ-$env:TZ_VERSION-symbols.zip"
+          Push-Location $symbols
+          try {
+            & $sevenZip a '-tzip' '-mx=9' '-mmt=on' $symbolsZip '*'
+            if ($LASTEXITCODE -ne 0) { throw "7-Zip failed to create the symbols ZIP with exit code $LASTEXITCODE" }
+          } finally {
+            Pop-Location
+          }
+
+          foreach ($path in @($setup, $runtimeZip, $symbolsZip)) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf) -or (Get-Item -LiteralPath $path).Length -le 0) {
+              throw "Published artifact is missing or empty: $path"
+            }
+          }
+          foreach ($path in @($runtimeZip, $symbolsZip)) {
+            & $sevenZip t $path
+            if ($LASTEXITCODE -ne 0) { throw "7-Zip test failed for $(Split-Path $path -Leaf) with exit code $LASTEXITCODE" }
+          }
 
           $published = @(
             "TZ-$env:TZ_VERSION-Setup.exe",
@@ -202,16 +308,23 @@ jobs:
             $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
             "$hash  $_"
           } | Set-Content -LiteralPath (Join-Path $artifacts 'SHA256SUMS.txt') -Encoding ascii
+          $sumLines = @(Get-Content -LiteralPath (Join-Path $artifacts 'SHA256SUMS.txt'))
+          if ($sumLines.Count -ne $published.Count) { throw "SHA256SUMS.txt contains $($sumLines.Count) lines; expected $($published.Count)" }
+          foreach ($name in $published) {
+            if (-not ($sumLines | Where-Object { $_ -match "^[0-9a-f]{64}  $([regex]::Escape($name))$" })) {
+              throw "SHA256SUMS.txt is missing a valid entry for $name"
+            }
+          }
 
       - name: Upload Windows Release artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: TZ-1.0.1-windows-x64
           path: |
-            artifacts/TZ-1.0.1-Setup.exe
-            artifacts/TZ-1.0.1-windows-x64.zip
-            artifacts/TZ-1.0.1-symbols.zip
-            artifacts/SHA256SUMS.txt
+            artifacts/release/TZ-1.0.1-Setup.exe
+            artifacts/release/TZ-1.0.1-windows-x64.zip
+            artifacts/release/TZ-1.0.1-symbols.zip
+            artifacts/release/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
           retention-days: 14

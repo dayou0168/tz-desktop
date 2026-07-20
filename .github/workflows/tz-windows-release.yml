@@ -2,16 +2,9 @@ name: TZ Windows Release
 
 on:
   workflow_dispatch:
-  push:
-    tags:
-      - v1.0.1
 
 permissions:
-  contents: write
-
-concurrency:
-  group: tz-windows-release-${{ github.ref }}
-  cancel-in-progress: false
+  contents: read
 
 jobs:
   windows-release-x64:
@@ -19,29 +12,17 @@ jobs:
     runs-on: windows-2022
     timeout-minutes: 355
 
-    defaults:
-      run:
-        shell: cmd
-
     env:
-      PREPARE_PATH: Telegram/build/prepare/prepare.py
-      TZ_VERSION: 1.0.1
+      BUILD_ROOT: '${{ github.workspace }}\build-root'
+      TZ_VERSION: '1.0.1'
 
     steps:
-      - name: Prepare build root
-        run: |
-          if not exist "%USERPROFILE%\TBuild\Libraries" mkdir "%USERPROFILE%\TBuild\Libraries"
-          if not exist "%USERPROFILE%\TBuild\ThirdParty" mkdir "%USERPROFILE%\TBuild\ThirdParty"
-          if not exist "%GITHUB_WORKSPACE%\TBuild" mklink /d "%GITHUB_WORKSPACE%\TBuild" "%USERPROFILE%\TBuild"
-          echo TBUILD=%GITHUB_WORKSPACE%\TBuild>>%GITHUB_ENV%
-          echo LibrariesPath=%GITHUB_WORKSPACE%\TBuild\Libraries\win64>>%GITHUB_ENV%
-
       - name: Checkout source and submodules
         uses: actions/checkout@v6
         with:
           submodules: recursive
           lfs: false
-          path: ${{ env.TBUILD }}\tdesktop
+          path: build-root/tdesktop
           fetch-depth: 1
           persist-credentials: false
 
@@ -50,362 +31,96 @@ jobs:
         with:
           python-version: '3.10'
 
-      - name: Verify source, submodules, and hosted toolchain
+      - name: Locate Visual Studio
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $source = Join-Path $env:TBUILD 'tdesktop'
-          $head = (& git -C $source rev-parse HEAD).Trim()
-          if ($LASTEXITCODE -ne 0 -or $head -ne $env:GITHUB_SHA) {
-            throw "Checked-out HEAD does not match GITHUB_SHA: $head != $env:GITHUB_SHA"
-          }
-
-          $gitlinks = @(& git -C $source ls-tree -r HEAD | Where-Object { $_ -match '^160000 commit ([0-9a-f]{40})\t(.+)$' } | ForEach-Object {
-            [pscustomobject]@{ Sha = $Matches[1]; Path = $Matches[2] }
-          })
-          if ($gitlinks.Count -ne 34) {
-            throw "Expected 34 gitlinks, found $($gitlinks.Count)."
-          }
-          $modulePaths = @(& git -C $source config -f .gitmodules --get-regexp '^submodule\..*\.path$')
-          if ($LASTEXITCODE -ne 0 -or $modulePaths.Count -ne 34) {
-            throw "Expected 34 .gitmodules paths, found $($modulePaths.Count)."
-          }
-          foreach ($gitlink in $gitlinks) {
-            $module = Join-Path $source $gitlink.Path
-            if (-not (Test-Path -LiteralPath $module -PathType Container)) {
-              throw "Submodule directory is missing: $($gitlink.Path)"
-            }
-            $actual = (& git -C $module rev-parse HEAD).Trim()
-            if ($LASTEXITCODE -ne 0 -or $actual -ne $gitlink.Sha) {
-              throw "Submodule SHA mismatch at $($gitlink.Path): $actual != $($gitlink.Sha)"
-            }
-          }
-          $recursiveStatus = @(& git -C $source submodule status --recursive)
-          $badStatus = @($recursiveStatus | Where-Object { $_ -match '^[+\-U]' })
-          if ($LASTEXITCODE -ne 0 -or $badStatus.Count -ne 0) {
-            throw "Recursive submodule checkout is incomplete or mismatched: $($badStatus -join '; ')"
-          }
-
           $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
-          if (-not (Test-Path -LiteralPath $vswhere -PathType Leaf)) { throw "vswhere.exe is missing: $vswhere" }
-          $vsPath = (& $vswhere -latest -products * -version '[17.0,18.0)' -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath).Trim()
-          if ($LASTEXITCODE -ne 0 -or -not $vsPath) { throw 'Visual Studio 2022 C++ toolchain was not found.' }
-          $vcvars = Join-Path $vsPath 'VC\Auxiliary\Build\vcvars64.bat'
-          if (-not (Test-Path -LiteralPath $vcvars -PathType Leaf)) { throw "vcvars64.bat is missing: $vcvars" }
+          $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -ne 0 -or -not $vsPath) { throw 'Visual Studio 2022 C++ tools were not found.' }
           "VS_PATH=$vsPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          "GYP_MSVS_OVERRIDE_PATH=$vsPath\" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          'GYP_MSVS_VERSION=2022' | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-          $sdkRoot = Join-Path ${env:ProgramFiles(x86)} 'Windows Kits\10\Include'
-          $sdk = Get-ChildItem -LiteralPath $sdkRoot -Directory | Where-Object { $_.Name -match '^10\.0\.\d+\.\d+$' } | Sort-Object { [version]$_.Name } -Descending | Select-Object -First 1
-          if (-not $sdk) { throw "No Windows 10 SDK was found under $sdkRoot" }
-          "SDK=$($sdk.Name)" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-          $isccCandidates = @(
-            (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
-            (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
-          ) | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) }
-          $iscc = $isccCandidates | Select-Object -First 1
-          if (-not $iscc) { throw 'Inno Setup 6 ISCC.exe was not found on the windows-2022 image.' }
-          if ((Get-Item -LiteralPath $iscc).VersionInfo.ProductMajorPart -ne 6) {
-            throw "Unexpected Inno Setup major version: $((Get-Item -LiteralPath $iscc).VersionInfo.ProductVersion)"
-          }
-          "ISCC_PATH=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-          $requiredCommands = @('git.exe', 'python.exe', 'cmake.exe', 'ninja.exe', 'node.exe', 'pwsh.exe', 'powershell.exe')
-          foreach ($command in $requiredCommands) {
-            if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Required runner command is missing: $command" }
-          }
-
-          $driveName = ([IO.Path]::GetPathRoot($env:USERPROFILE)).TrimEnd('\').TrimEnd(':')
-          $freeBytes = (Get-PSDrive -Name $driveName).Free
-          if ($freeBytes -lt 25GB) { throw "Insufficient build-drive space before dependency preparation: $freeBytes bytes free." }
-
-          $provenance = @(
-            "source_commit=$head",
-            "runner_image=$env:ImageOS",
-            "runner_image_version=$env:ImageVersion",
-            "visual_studio=$((Get-Item -LiteralPath (Join-Path $vsPath 'Common7\IDE\devenv.exe')).VersionInfo.ProductVersion)",
-            "windows_sdk=$($sdk.Name)",
-            "python=$(& python --version 2>&1)",
-            "cmake=$((& cmake --version | Select-Object -First 1))",
-            "ninja=$(& ninja --version)",
-            "node=$(& node --version)",
-            "powershell_core=$($PSVersionTable.PSVersion)",
-            "windows_powershell=$(& powershell.exe -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()')",
-            "inno_setup=$((Get-Item -LiteralPath $iscc).VersionInfo.ProductVersion)",
-            "tracked_gitlinks=$($gitlinks.Count)",
-            "recursive_submodule_entries=$($recursiveStatus.Count)",
-            "build_drive_free_bytes=$freeBytes"
-          )
-          $provenance + ($gitlinks | Sort-Object Path | ForEach-Object { "submodule=$($_.Sha) $($_.Path)" }) |
-            Set-Content -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'toolchain-provenance.txt') -Encoding utf8
-
-      - name: Compute exact dependency cache key
-        shell: bash
-        run: |
-          {
-            sha256sum "$TBUILD/tdesktop/Telegram/build/prepare/prepare.py"
-            sha256sum "$TBUILD/tdesktop/Telegram/build/prepare/win.bat"
-            sha256sum "$TBUILD/tdesktop/Telegram/build/qt_version.py"
-            git -C "$TBUILD/tdesktop" ls-tree -r HEAD | awk '$2 == "commit" { print $3 " " $4 }' | sort
-            printf '%s\n' "$SDK"
-          } > CACHE_KEY.txt
-          echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> "$GITHUB_ENV"
-
-      - name: Cache ThirdParty
-        uses: actions/cache@v5
-        with:
-          path: ${{ env.TBUILD }}\ThirdParty
-          key: windows-x64-third-party-${{ env.CACHE_KEY }}
-
-      - name: Cache libraries excluding Qt
-        uses: actions/cache@v5
-        with:
-          path: |
-            ${{ env.LibrariesPath }}\*
-            !${{ env.LibrariesPath }}\cache_keys
-            !${{ env.LibrariesPath }}\[qQ]t[_-]*
-            ${{ env.LibrariesPath }}\cache_keys\*
-            !${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: windows-x64-libs-${{ env.CACHE_KEY }}
-
-      - name: Cache Qt
-        uses: actions/cache@v5
-        with:
-          path: |
-            ${{ env.LibrariesPath }}\[qQ]t[_-]*
-            ${{ env.LibrariesPath }}\cache_keys\[qQ]t[_-]*
-          key: windows-x64-qt-${{ env.CACHE_KEY }}
 
       - name: Prepare Release dependencies
+        shell: cmd
+        working-directory: '${{ env.BUILD_ROOT }}'
         run: |
-          call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat" -vcvars_ver=14.44
+          call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
           if errorlevel 1 exit /b 1
-          nuget sources Disable -Name "Microsoft Visual Studio Offline Packages" || ver > nul
-          nuget sources Add -Source https://api.nuget.org/v3/index.json || ver > nul
           set "TZ_PREPARE_THREADS=2"
           set "CL_MPCount=1"
           set "UseMultiToolTask=false"
           set "MSBUILDDISABLENODEREUSE=1"
-          "%TBUILD%\tdesktop\Telegram\build\prepare\win.bat" silent
+          "%BUILD_ROOT%\tdesktop\Telegram\build\prepare\win.bat" silent
 
-      - name: Verify prepared dependencies and disk budget
-        shell: pwsh
+      - name: Configure TZ Release x64
+        shell: cmd
         run: |
-          $ErrorActionPreference = 'Stop'
-          $thirdParty = Join-Path $env:TBUILD 'ThirdParty'
-          $nasm = Join-Path $thirdParty 'msys64\mingw64\bin\nasm.exe'
-          $perl = Join-Path $thirdParty 'msys64\mingw64\bin\perl.exe'
-          $pacman = Join-Path $thirdParty 'msys64\usr\bin\pacman.exe'
-          $nuget = Join-Path $thirdParty 'NuGet\nuget.exe'
-          $venvPython = Join-Path $thirdParty 'python\Scripts\python.exe'
-          foreach ($tool in @($nasm, $perl, $pacman, $nuget, $venvPython)) {
-            if (-not (Test-Path -LiteralPath $tool -PathType Leaf)) { throw "Prepared tool is missing: $tool" }
-          }
-          $nasmVersion = (& $nasm -v).Trim()
-          if ($LASTEXITCODE -ne 0 -or $nasmVersion -notlike 'NASM version 2.16.03*') { throw "Unexpected NASM version: $nasmVersion" }
-          $nugetVersion = (& $nuget | Select-String -Pattern '^NuGet Version:' | Select-Object -First 1).Line
-          if ($LASTEXITCODE -ne 0 -or $nugetVersion -notmatch 'NuGet Version:\s+7\.6\.0(?:\.\d+)?') { throw "Unexpected NuGet version: $nugetVersion" }
-
-          $driveName = ([IO.Path]::GetPathRoot($env:USERPROFILE)).TrimEnd('\').TrimEnd(':')
-          $freeBytes = (Get-PSDrive -Name $driveName).Free
-          if ($freeBytes -lt 18GB) { throw "Insufficient build-drive space after dependency preparation: $freeBytes bytes free." }
-
-          @(
-            "nasm=$nasmVersion",
-            "nasm_sha256=$((Get-FileHash -LiteralPath $nasm -Algorithm SHA256).Hash.ToLowerInvariant())",
-            "perl=$((& $perl --version | Select-Object -First 2) -join ' ')",
-            "nuget=$nugetVersion",
-            "nuget_sha256=$((Get-FileHash -LiteralPath $nuget -Algorithm SHA256).Hash.ToLowerInvariant())",
-            "prepared_python=$(& $venvPython --version 2>&1)",
-            "post_prepare_free_bytes=$freeBytes",
-            'msys_packages_begin',
-            (& $pacman -Q),
-            'msys_packages_end',
-            'python_packages_begin',
-            (& $venvPython -m pip --disable-pip-version-check freeze),
-            'python_packages_end'
-          ) | Add-Content -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'toolchain-provenance.txt') -Encoding utf8
-
-      - name: Reclaim dependency source space safely
-        shell: bash
-        run: |
-          find "$LibrariesPath" -type f \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.cxx' -o -name '*.m' -o -name '*.mm' \) -delete
-          df -h
-
-      - name: Configure and build TZ Release x64
-        env:
-          CL_MPCount: '1'
-          UseMultiToolTask: 'false'
-          MSBUILDDISABLENODEREUSE: '1'
-        run: |
-          call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat" -vcvars_ver=14.44
+          call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
           if errorlevel 1 exit /b 1
-          cd /d "%TBUILD%\tdesktop\Telegram"
+          cd /d "%BUILD_ROOT%\tdesktop\Telegram"
           call configure.bat x64 ^
             -D TDESKTOP_API_TEST=ON ^
             -D CMAKE_CONFIGURATION_TYPES=Release ^
+            -D DESKTOP_APP_SPECIAL_TARGET=win64 ^
             -D DESKTOP_APP_ENABLE_LTO=ON ^
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
             -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
           if errorlevel 1 exit /b 1
-          cmake --build ..\out --config Release --target Telegram --parallel 2 -- /nr:false /p:CL_MPCount=1 /p:UseMultiToolTask=false
 
-      - name: Stage minimal runtime and symbols
+      - name: Build TZ Release x64
+        shell: cmd
+        run: |
+          call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
+          if errorlevel 1 exit /b 1
+          MSBuild.exe "%BUILD_ROOT%\tdesktop\out\Telegram.sln" /m:2 /t:Telegram /p:Configuration=Release /p:Platform=x64 /nr:false /p:CL_MPCount=1 /p:UseMultiToolTask=false
+
+      - name: Build installer and archives
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $out = Join-Path $env:TBUILD 'tdesktop\out\Release'
-          $stage = Join-Path $env:GITHUB_WORKSPACE 'tz-release'
-          $runtime = Join-Path $stage 'runtime'
-          $symbols = Join-Path $stage 'symbols'
+          $release = Join-Path $env:BUILD_ROOT 'tdesktop\out\Release'
+          $artifacts = Join-Path $env:GITHUB_WORKSPACE 'artifacts'
+          $runtime = Join-Path $artifacts 'runtime'
+          $symbols = Join-Path $artifacts 'symbols'
           New-Item -ItemType Directory -Path (Join-Path $runtime 'modules\x64\d3d'), $symbols -Force | Out-Null
 
-          $required = @(
-            @{ Source = (Join-Path $out 'TZ.exe'); Destination = (Join-Path $runtime 'TZ.exe') },
-            @{ Source = (Join-Path $out 'modules\x64\d3d\d3dcompiler_47.dll'); Destination = (Join-Path $runtime 'modules\x64\d3d\d3dcompiler_47.dll') },
-            @{ Source = (Join-Path $out 'TZ.pdb'); Destination = (Join-Path $symbols 'TZ.pdb') }
-          )
-          foreach ($item in $required) {
-            if (-not (Test-Path -LiteralPath $item.Source -PathType Leaf)) { throw "Missing required Release output: $($item.Source)" }
-            Copy-Item -LiteralPath $item.Source -Destination $item.Destination
+          Copy-Item -LiteralPath (Join-Path $release 'TZ.exe') -Destination (Join-Path $runtime 'TZ.exe')
+          Copy-Item -LiteralPath (Join-Path $release 'modules\x64\d3d\d3dcompiler_47.dll') -Destination (Join-Path $runtime 'modules\x64\d3d\d3dcompiler_47.dll')
+          Copy-Item -LiteralPath (Join-Path $release 'TZ.pdb') -Destination (Join-Path $symbols 'TZ.pdb')
+
+          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+          if (-not $iscc) {
+            $iscc = Join-Path ([Environment]::GetFolderPath('ProgramFilesX86')) 'Inno Setup 6\ISCC.exe'
           }
-          Copy-Item -LiteralPath (Join-Path $env:GITHUB_WORKSPACE 'toolchain-provenance.txt') -Destination (Join-Path $stage 'toolchain-provenance.txt')
-
-          $runtimeFiles = @(Get-ChildItem -LiteralPath $runtime -File -Recurse | Sort-Object FullName)
-          $runtimeRelative = @($runtimeFiles | ForEach-Object { [IO.Path]::GetRelativePath($runtime, $_.FullName).Replace('\', '/') })
-          $expectedRuntime = @('TZ.exe', 'modules/x64/d3d/d3dcompiler_47.dll')
-          if (Compare-Object -ReferenceObject $expectedRuntime -DifferenceObject $runtimeRelative) {
-            throw "Unexpected minimal runtime contents: $($runtimeRelative -join ', ')"
-          }
-          if ($runtimeRelative -contains 'Updater.exe' -or @($runtimeRelative | Where-Object { $_ -like '*.pdb' }).Count -ne 0) {
-            throw 'Updater or PDB must not be staged in the user runtime.'
-          }
-
-          $runtimeFiles | ForEach-Object {
-            $relative = [IO.Path]::GetRelativePath($runtime, $_.FullName).Replace('\', '/')
-            "$relative`t$($_.Length)"
-          } | Set-Content -LiteralPath (Join-Path $stage 'runtime-manifest.txt') -Encoding utf8
-
-      - name: Verify TZ startup
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $exe = Join-Path $env:GITHUB_WORKSPACE 'tz-release\runtime\TZ.exe'
-          $work = Join-Path $env:RUNNER_TEMP 'tz-startup-check'
-          New-Item -ItemType Directory -Path $work -Force | Out-Null
-          $process = Start-Process -FilePath $exe -ArgumentList '-many', '-workdir', $work -PassThru
-          try {
-            Start-Sleep -Seconds 12
-            if ($process.HasExited) { throw "TZ.exe exited during startup verification with code $($process.ExitCode)." }
-          } finally {
-            if (-not $process.HasExited) { Stop-Process -Id $process.Id -Force }
-          }
-
-      - name: Build LZMA2 solid installer and checksums
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $stage = Join-Path $env:GITHUB_WORKSPACE 'tz-release'
-          $runtime = Join-Path $stage 'runtime'
-          $script = Join-Path $env:TBUILD 'tdesktop\Telegram\build\setup.iss'
-          $iscc = $env:ISCC_PATH
-          if (-not (Test-Path -LiteralPath $iscc -PathType Leaf)) { throw "ISCC not found at verified runner path: $iscc" }
-
-          & $iscc "/dMyAppVersion=$env:TZ_VERSION" "/dMyAppVersionFull=$env:TZ_VERSION" "/dReleasePath=$runtime" '/dMyBuildTarget=win64' $script
+          $iss = Join-Path $env:BUILD_ROOT 'tdesktop\Telegram\build\setup.iss'
+          & $iscc "/dMyAppVersion=$env:TZ_VERSION" "/dMyAppVersionFull=$env:TZ_VERSION" "/dReleasePath=$runtime" '/dMyBuildTarget=win64' $iss
           if ($LASTEXITCODE -ne 0) { throw "ISCC failed with exit code $LASTEXITCODE" }
 
           $setup = Join-Path $runtime "TZ-$env:TZ_VERSION-Setup.exe"
-          if (-not (Test-Path -LiteralPath $setup -PathType Leaf)) { throw "Installer was not created: $setup" }
-          Move-Item -LiteralPath $setup -Destination (Join-Path $stage (Split-Path $setup -Leaf))
+          Move-Item -LiteralPath $setup -Destination (Join-Path $artifacts (Split-Path $setup -Leaf))
+          Compress-Archive -Path (Join-Path $runtime '*') -DestinationPath (Join-Path $artifacts "TZ-$env:TZ_VERSION-windows-x64.zip") -CompressionLevel Optimal
+          Compress-Archive -Path (Join-Path $symbols '*') -DestinationPath (Join-Path $artifacts "TZ-$env:TZ_VERSION-symbols.zip") -CompressionLevel Optimal
 
-          $debugBaseline = 470681088L
-          $maximumReleaseBytes = [long][Math]::Floor($debugBaseline * 0.70)
-          $releaseExe = Join-Path $runtime 'TZ.exe'
-          $releaseSetup = Join-Path $stage "TZ-$env:TZ_VERSION-Setup.exe"
-          $sizeLines = foreach ($path in @($releaseExe, $releaseSetup)) {
-            $item = Get-Item -LiteralPath $path
-            if ($item.Length -ge $maximumReleaseBytes) {
-              throw "$($item.Name) is not significantly smaller than the Debug baseline: $($item.Length) bytes (limit $maximumReleaseBytes)."
-            }
-            $reduction = [Math]::Round((1 - ($item.Length / $debugBaseline)) * 100, 2)
-            "$($item.Name)`t$($item.Length)`t${reduction}% smaller than Debug"
-          }
-          @("Debug baseline`t$debugBaseline", "Required maximum`t$maximumReleaseBytes") + $sizeLines |
-            Set-Content -LiteralPath (Join-Path $stage 'size-comparison.txt') -Encoding ascii
-
-          $hashTargets = @(
-            (Join-Path $runtime 'TZ.exe'),
-            (Join-Path $runtime 'modules\x64\d3d\d3dcompiler_47.dll'),
-            (Join-Path $stage 'symbols\TZ.pdb'),
-            (Join-Path $stage "TZ-$env:TZ_VERSION-Setup.exe"),
-            (Join-Path $stage 'runtime-manifest.txt'),
-            (Join-Path $stage 'toolchain-provenance.txt')
+          $published = @(
+            "TZ-$env:TZ_VERSION-Setup.exe",
+            "TZ-$env:TZ_VERSION-windows-x64.zip",
+            "TZ-$env:TZ_VERSION-symbols.zip"
           )
-          $hashTargets | ForEach-Object {
-            $hash = (Get-FileHash -LiteralPath $_ -Algorithm SHA256).Hash.ToLowerInvariant()
-            $relative = [IO.Path]::GetRelativePath($stage, $_).Replace('\', '/')
-            "$hash  $relative"
-          } | Set-Content -LiteralPath (Join-Path $stage 'SHA256SUMS.txt') -Encoding ascii
+          $published | ForEach-Object {
+            $path = Join-Path $artifacts $_
+            $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $_"
+          } | Set-Content -LiteralPath (Join-Path $artifacts 'SHA256SUMS.txt') -Encoding ascii
 
-      - name: Upload runtime artifact
+      - name: Upload Windows Release artifacts
         uses: actions/upload-artifact@v7
         with:
           name: TZ-1.0.1-windows-x64
           path: |
-            tz-release/runtime/TZ.exe
-            tz-release/runtime/modules/x64/d3d/d3dcompiler_47.dll
-            tz-release/runtime-manifest.txt
-            tz-release/toolchain-provenance.txt
-            tz-release/size-comparison.txt
-            tz-release/SHA256SUMS.txt
-          if-no-files-found: error
-          compression-level: 9
-
-      - name: Upload PDB artifact separately
-        uses: actions/upload-artifact@v7
-        with:
-          name: TZ-1.0.1-windows-x64-symbols
-          path: |
-            tz-release/symbols/TZ.pdb
-            tz-release/toolchain-provenance.txt
-            tz-release/SHA256SUMS.txt
-          if-no-files-found: error
-          compression-level: 9
-          retention-days: 14
-
-      - name: Upload installer artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: TZ-1.0.1-windows-x64-installer
-          path: |
-            tz-release/TZ-1.0.1-Setup.exe
-            tz-release/runtime-manifest.txt
-            tz-release/toolchain-provenance.txt
-            tz-release/size-comparison.txt
-            tz-release/SHA256SUMS.txt
+            artifacts/TZ-1.0.1-Setup.exe
+            artifacts/TZ-1.0.1-windows-x64.zip
+            artifacts/TZ-1.0.1-symbols.zip
+            artifacts/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0
-
-      - name: Create or update GitHub Release
-        if: github.event_name == 'push' && github.ref == 'refs/tags/v1.0.1'
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $assets = @(
-            'tz-release/runtime/TZ.exe',
-            'tz-release/TZ-1.0.1-Setup.exe',
-            'tz-release/runtime-manifest.txt',
-            'tz-release/toolchain-provenance.txt',
-            'tz-release/size-comparison.txt',
-            'tz-release/SHA256SUMS.txt'
-          )
-          gh release view $env:GITHUB_REF_NAME *> $null
-          if ($LASTEXITCODE -eq 0) {
-            gh release upload $env:GITHUB_REF_NAME @assets --clobber
-          } else {
-            gh release create $env:GITHUB_REF_NAME @assets --verify-tag --title 'TZ 1.0.1' --generate-notes
-          }
+          retention-days: 14

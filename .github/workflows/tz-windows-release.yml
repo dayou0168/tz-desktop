@@ -60,11 +60,11 @@ jobs:
             throw "Checked-out HEAD does not match GITHUB_SHA: $head != $env:GITHUB_SHA"
           }
 
-          $gitlinks = @(& git -C $source ls-tree HEAD | Where-Object { $_ -match '^160000 commit ([0-9a-f]{40})\t(.+)$' } | ForEach-Object {
+          $gitlinks = @(& git -C $source ls-tree -r HEAD | Where-Object { $_ -match '^160000 commit ([0-9a-f]{40})\t(.+)$' } | ForEach-Object {
             [pscustomobject]@{ Sha = $Matches[1]; Path = $Matches[2] }
           })
           if ($gitlinks.Count -ne 34) {
-            throw "Expected 34 top-level gitlinks, found $($gitlinks.Count)."
+            throw "Expected 34 gitlinks, found $($gitlinks.Count)."
           }
           $modulePaths = @(& git -C $source config -f .gitmodules --get-regexp '^submodule\..*\.path$')
           if ($LASTEXITCODE -ne 0 -or $modulePaths.Count -ne 34) {
@@ -134,7 +134,7 @@ jobs:
             "powershell_core=$($PSVersionTable.PSVersion)",
             "windows_powershell=$(& powershell.exe -NoProfile -NonInteractive -Command '$PSVersionTable.PSVersion.ToString()')",
             "inno_setup=$((Get-Item -LiteralPath $iscc).VersionInfo.ProductVersion)",
-            "top_level_gitlinks=$($gitlinks.Count)",
+            "tracked_gitlinks=$($gitlinks.Count)",
             "recursive_submodule_entries=$($recursiveStatus.Count)",
             "build_drive_free_bytes=$freeBytes"
           )
@@ -148,7 +148,7 @@ jobs:
             sha256sum "$TBUILD/tdesktop/Telegram/build/prepare/prepare.py"
             sha256sum "$TBUILD/tdesktop/Telegram/build/prepare/win.bat"
             sha256sum "$TBUILD/tdesktop/Telegram/build/qt_version.py"
-            git -C "$TBUILD/tdesktop" ls-tree HEAD | awk '$2 == "commit" { print $3 " " $4 }' | sort
+            git -C "$TBUILD/tdesktop" ls-tree -r HEAD | awk '$2 == "commit" { print $3 " " $4 }' | sort
             printf '%s\n' "$SDK"
           } > CACHE_KEY.txt
           echo "CACHE_KEY=$(sha256sum CACHE_KEY.txt | awk '{ print $1 }')" >> "$GITHUB_ENV"

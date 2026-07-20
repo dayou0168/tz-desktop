@@ -35,7 +35,7 @@ jobs:
           submodules: recursive
           lfs: false
           path: build-root/tdesktop
-          fetch-depth: 1
+          fetch-depth: 20
           persist-credentials: false
           clean: false
 
@@ -99,7 +99,197 @@ jobs:
             ${{ env.BUILD_ROOT }}\ThirdParty
           key: tz-deps-windows-x64-msvc-${{ env.TZ_MSVC_TOOLSET }}-python-3.10-${{ hashFiles('build-root/tdesktop/Telegram/build/prepare/**', 'build-root/tdesktop/.gitmodules', 'build-root/tdesktop/Telegram/.gitmodules') }}
 
+      - name: Restore compile checkpoint
+        id: compile-checkpoint
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.BUILD_ROOT }}/tdesktop/out/**/*.dir/Release
+            ${{ env.BUILD_ROOT }}/tdesktop/out/**/*_autogen
+            ${{ env.BUILD_ROOT }}/tdesktop/out/**/gen
+            ${{ env.BUILD_ROOT }}/tdesktop/out/**/shaders
+          key: tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-off-sha-${{ github.sha }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          restore-keys: |
+            tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-off-sha-${{ github.sha }}-
+            tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-off-
+
+      - name: Prepare restored compile checkpoint
+        shell: pwsh
+        env:
+          TZ_COMPILE_MATCHED_KEY: ${{ steps.compile-checkpoint.outputs.cache-matched-key }}
+          TZ_CURRENT_SHA: ${{ github.sha }}
+          TZ_BRANCH: ${{ github.ref_name }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $repo = Join-Path $env:BUILD_ROOT 'tdesktop'
+          $outRoot = Join-Path $repo 'out'
+
+          function Get-CompileCheckpointDirectories {
+            if (-not (Test-Path -LiteralPath $outRoot -PathType Container)) { return @() }
+            return @(Get-ChildItem -LiteralPath $outRoot -Recurse -Directory -Force -ErrorAction Stop |
+              Where-Object {
+                ($_.Name -eq 'Release' -and $_.Parent.Name -like '*.dir') -or
+                $_.Name -like '*_autogen' -or
+                $_.Name -eq 'gen' -or
+                $_.Name -eq 'shaders'
+              })
+          }
+
+          function Remove-CompileCheckpoint([string]$reason) {
+            $directories = @(Get-CompileCheckpointDirectories |
+              Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true })
+            foreach ($directory in $directories) {
+              if (Test-Path -LiteralPath $directory.FullName) {
+                Remove-Item -LiteralPath $directory.FullName -Recurse -Force -ErrorAction Stop
+              }
+            }
+            $remaining = @(Get-CompileCheckpointDirectories)
+            if ($remaining.Count -ne 0) {
+              throw "Could not remove all compile checkpoint directories ($($remaining.Count) remain)."
+            }
+            Write-Host "::notice::compile checkpoint mode: full rebuild fallback ($reason)."
+          }
+
+          function Get-CompileCheckpointFiles {
+            $files = foreach ($directory in @(Get-CompileCheckpointDirectories)) {
+              Get-ChildItem -LiteralPath $directory.FullName -Recurse -File -Force -ErrorAction Stop
+            }
+            return @($files | Sort-Object FullName -Unique)
+          }
+
+          function Set-CheckpointFileTimes([System.IO.FileInfo[]]$files, [datetime]$timestampUtc) {
+            foreach ($file in $files) {
+              $file.LastWriteTimeUtc = $timestampUtc
+            }
+          }
+
+          function Test-SafeIncrementalPath([string]$path) {
+            $normalized = $path.Replace('\', '/')
+            if ($normalized -match '(^|/)\.gitmodules$' -or
+                $normalized -match '^\.github/(workflows|actions)/' -or
+                $normalized -match '(^|/)(CMakeLists\.txt|CMakePresets\.json|CMakeUserPresets\.json)$' -or
+                $normalized -match '(^|/)(cmake|build|configure|scripts?)/' -or
+                $normalized -match '(^|/)configure(\.bat|\.cmd|\.sh)?$' -or
+                $normalized -match '\.(cmake|yml|yaml|bat|cmd|ps1|py|pl|sh|props|targets|vcxproj|sln|filters|toml|lock)$') {
+              return $false
+            }
+            $extension = [System.IO.Path]::GetExtension($normalized).ToLowerInvariant()
+            return $extension -in @(
+              '.c', '.cc', '.cpp', '.cxx', '.m', '.mm', '.h', '.hh', '.hpp', '.hxx', '.inl', '.inc', '.ipp',
+              '.asm', '.s', '.rc', '.rc2', '.qrc', '.ui', '.qml', '.js', '.ts', '.proto', '.tl', '.scheme',
+              '.style', '.palette', '.lang', '.strings', '.emoji', '.tgs', '.png', '.jpg', '.jpeg', '.gif',
+              '.bmp', '.ico', '.cur', '.svg', '.webp', '.wav', '.mp3', '.ogg', '.ttf', '.woff', '.woff2',
+              '.glsl', '.hlsl', '.vert', '.frag'
+            )
+          }
+
+          $matchedKey = $env:TZ_COMPILE_MATCHED_KEY
+          if ([string]::IsNullOrWhiteSpace($matchedKey)) {
+            Remove-CompileCheckpoint 'no cache key was restored'
+            exit 0
+          }
+
+          $expectedPrefix = "tz-compile-windows-x64-branch-$env:TZ_BRANCH-msvc-$env:TZ_MSVC_TOOLSET-Release-lto-off-"
+          $sourceMatch = [regex]::Match($matchedKey, '-sha-(?<sha>[0-9a-fA-F]{40})-run-\d+-attempt-\d+$')
+          if (-not $matchedKey.StartsWith($expectedPrefix, [System.StringComparison]::Ordinal) -or -not $sourceMatch.Success) {
+            Remove-CompileCheckpoint 'the restored cache key had an unexpected or unparseable source'
+            exit 0
+          }
+
+          $previousSha = $sourceMatch.Groups['sha'].Value.ToLowerInvariant()
+          $currentSha = $env:TZ_CURRENT_SHA.ToLowerInvariant()
+          $checkpointFiles = @(Get-CompileCheckpointFiles)
+          if ($checkpointFiles.Count -eq 0) {
+            Remove-CompileCheckpoint 'the restored cache contained no checkpoint files'
+            exit 0
+          }
+
+          if ($previousSha -eq $currentSha) {
+            Set-CheckpointFileTimes $checkpointFiles ([datetime]::UtcNow)
+            Write-Host "::notice::compile checkpoint mode: exact resume (source SHA $currentSha)."
+            exit 0
+          }
+
+          & git -C $repo cat-file -e "$previousSha^{commit}" 2>$null
+          if ($LASTEXITCODE -ne 0) {
+            Remove-CompileCheckpoint "source SHA $previousSha is not available in the local checkout"
+            exit 0
+          }
+          & git -C $repo merge-base --is-ancestor $previousSha $currentSha
+          if ($LASTEXITCODE -ne 0) {
+            Remove-CompileCheckpoint "source SHA $previousSha is not an ancestor of $currentSha"
+            exit 0
+          }
+
+          $diffFile = Join-Path $env:RUNNER_TEMP "tz-compile-diff-$([guid]::NewGuid().ToString('N')).bin"
+          try {
+            & git -C $repo diff --no-ext-diff --no-renames --name-only -z "--output=$diffFile" $previousSha $currentSha -- .
+            if ($LASTEXITCODE -ne 0 -or -not (Test-Path -LiteralPath $diffFile -PathType Leaf)) {
+              throw 'git diff did not produce a trustworthy path list'
+            }
+            $diffText = [System.Text.Encoding]::UTF8.GetString([System.IO.File]::ReadAllBytes($diffFile))
+            $changedPaths = @($diffText -split "`0" | Where-Object { $_.Length -gt 0 } | Sort-Object -Unique)
+          } catch {
+            Remove-CompileCheckpoint 'git diff failed or its output could not be read safely'
+            exit 0
+          } finally {
+            Remove-Item -LiteralPath $diffFile -Force -ErrorAction SilentlyContinue
+          }
+
+          $unsafeReason = $null
+          foreach ($path in $changedPaths) {
+            foreach ($sha in @($previousSha, $currentSha)) {
+              $treeEntry = @(& git -C $repo ls-tree $sha -- $path)
+              if ($LASTEXITCODE -ne 0) {
+                $unsafeReason = 'git ls-tree failed while checking a changed path'
+                break
+              }
+              if ($treeEntry | Where-Object { $_ -match '^160000\s' }) {
+                $unsafeReason = 'a submodule gitlink changed'
+                break
+              }
+            }
+            if ($unsafeReason) { break }
+            if (-not (Test-SafeIncrementalPath $path)) {
+              $unsafeReason = 'a changed path is outside the source, header, and resource allowlist'
+              break
+            }
+          }
+          if ($unsafeReason) {
+            Remove-CompileCheckpoint $unsafeReason
+            exit 0
+          }
+
+          $generatedDirectories = @(Get-CompileCheckpointDirectories | Where-Object {
+            $_.Name -like '*_autogen' -or $_.Name -eq 'gen' -or $_.Name -eq 'shaders'
+          } | Sort-Object @{ Expression = { $_.FullName.Length }; Descending = $true })
+          foreach ($directory in $generatedDirectories) {
+            if (Test-Path -LiteralPath $directory.FullName) {
+              Remove-Item -LiteralPath $directory.FullName -Recurse -Force -ErrorAction Stop
+            }
+          }
+
+          $checkpointFiles = @(Get-CompileCheckpointFiles)
+          if ($checkpointFiles.Count -eq 0) {
+            Remove-CompileCheckpoint 'no object checkpoint remained after generated directories were discarded'
+            exit 0
+          }
+          $checkpointTimeUtc = [datetime]::UtcNow
+          Set-CheckpointFileTimes $checkpointFiles $checkpointTimeUtc
+          $changedTimeUtc = $checkpointTimeUtc.AddSeconds(2)
+          $touched = 0
+          foreach ($path in $changedPaths) {
+            $fullPath = Join-Path $repo $path
+            if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
+              (Get-Item -LiteralPath $fullPath -Force).LastWriteTimeUtc = $changedTimeUtc
+              $touched++
+            }
+          }
+          Write-Host "::notice::compile checkpoint mode: cross-commit incremental ($previousSha -> $currentSha; $($changedPaths.Count) changed paths, $touched existing files touched)."
+
       - name: Configure TZ Release x64
+        id: configure
         shell: cmd
         run: |
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
@@ -115,8 +305,11 @@ jobs:
           if errorlevel 1 exit /b 1
 
       - name: Build TZ Release x64
+        id: build
+        continue-on-error: true
         shell: pwsh
         run: |
+          $ErrorActionPreference = 'Stop'
           $outRoot = Join-Path $env:BUILD_ROOT 'tdesktop\out'
           $estimated = (Get-ChildItem -LiteralPath $outRoot -Recurse -Filter '*.vcxproj' -File |
             Select-String -SimpleMatch '<ClCompile Include=' |
@@ -151,6 +344,7 @@ jobs:
           '@ | Set-Content -LiteralPath $monitorScript -Encoding utf8
 
           $build = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/c', $buildScript) -NoNewWindow -PassThru
+          $buildExitCode = $null
           $env:TZ_PROGRESS_ROOT = $outRoot
           $env:TZ_PROGRESS_TOTAL = [string]$estimated
           $env:TZ_PROGRESS_BUILD_PID = [string]$build.Id
@@ -166,7 +360,7 @@ jobs:
               $build.Refresh()
             }
             $build.WaitForExit()
-            if ($build.ExitCode -ne 0) { throw "MSBuild failed with exit code $($build.ExitCode)" }
+            $buildExitCode = [int]$build.ExitCode
           } finally {
             if ($monitor -and -not $monitor.HasExited) {
               Stop-Process -Id $monitor.Id -Force -ErrorAction SilentlyContinue
@@ -174,6 +368,42 @@ jobs:
             Remove-Item -LiteralPath $buildScript, $monitorScript -Force -ErrorAction SilentlyContinue
           }
 
+          if ($null -eq $buildExitCode) { throw 'MSBuild did not report an exit code.' }
+          "exit_code=$buildExitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          if ($buildExitCode -ne 0) {
+            Write-Host "::error::MSBuild failed with exit code $buildExitCode."
+            exit $buildExitCode
+          }
+
+      - name: Save compile checkpoint
+        if: ${{ always() && steps.configure.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.BUILD_ROOT }}/tdesktop/out/**/*.dir/Release
+            ${{ env.BUILD_ROOT }}/tdesktop/out/**/*_autogen
+            ${{ env.BUILD_ROOT }}/tdesktop/out/**/gen
+            ${{ env.BUILD_ROOT }}/tdesktop/out/**/shaders
+          key: tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-off-sha-${{ github.sha }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+
+      - name: Enforce build result
+        if: ${{ always() && steps.configure.outcome == 'success' }}
+        shell: pwsh
+        env:
+          TZ_BUILD_EXIT_CODE: ${{ steps.build.outputs.exit_code }}
+        run: |
+          if ($env:TZ_BUILD_EXIT_CODE -notmatch '^\d+$') {
+            throw 'The build step did not record a valid MSBuild exit code.'
+          }
+          $exitCode = [int]$env:TZ_BUILD_EXIT_CODE
+          if ($exitCode -ne 0) { throw "MSBuild failed with exit code $exitCode." }
+
+      - name: Stage reusable Windows build outputs
+        if: ${{ steps.build.outputs.exit_code == '0' }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
           $release = Join-Path $env:BUILD_ROOT 'tdesktop\out\Release'
           $intermediate = Join-Path $env:GITHUB_WORKSPACE 'artifacts\intermediate'
           $runtime = Join-Path $intermediate 'runtime'
@@ -195,6 +425,7 @@ jobs:
           }
 
       - name: Upload reusable Windows build outputs
+        if: ${{ steps.build.outputs.exit_code == '0' }}
         uses: actions/upload-artifact@v4
         with:
           name: TZ-1.0.1-windows-x64-build

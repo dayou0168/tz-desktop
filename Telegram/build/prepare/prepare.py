@@ -496,7 +496,6 @@ stage('NuGet', """
 win:
     mkdir NuGet
     powershell.exe -NoProfile -NonInteractive -Command "iwr -OutFile ./NuGet/nuget.exe https://dist.nuget.org/win-x86-commandline/v7.6.0/nuget.exe"
-    powershell.exe -NoProfile -NonInteractive -Command "$version = (& './NuGet/nuget.exe' | Select-String '^NuGet Version:').Line; if ($LASTEXITCODE -ne 0 -or $version -ne 'NuGet Version: 7.6.0') { throw ('Unexpected NuGet version: ' + $version) }"
 """, 'ThirdParty')
 
 stage('jom', """

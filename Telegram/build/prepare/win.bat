@@ -9,7 +9,7 @@ if not defined CL_MPCount set "CL_MPCount=1"
 if not defined UseMultiToolTask set "UseMultiToolTask=false"
 if not defined MSBUILDDISABLENODEREUSE set "MSBUILDDISABLENODEREUSE=1"
 
-python %FullScriptPath%prepare.py %*
+python "%FullScriptPath%prepare.py" %*
 if %errorlevel% neq 0 goto error
 
 exit /b

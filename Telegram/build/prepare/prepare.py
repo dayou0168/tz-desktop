@@ -480,7 +480,7 @@ win:
 
     curl.exe --fail --location --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 --output mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst
     pacman -U --noconfirm mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst
-    powershell -NoProfile -Command "$version = (& './msys64/mingw64/bin/nasm.exe' -v); if ($LASTEXITCODE -ne 0 -or $version -notlike 'NASM version 2.16.03*') { throw ('Unexpected native NASM version: ' + $version) }"
+    powershell.exe -NoProfile -NonInteractive -Command "$version = (& './msys64/mingw64/bin/nasm.exe' -v); if ($LASTEXITCODE -ne 0 -or $version -notlike 'NASM version 2.16.03*') { throw ('Unexpected native NASM version: ' + $version) }"
     del mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst
 """, 'ThirdParty')
 
@@ -496,7 +496,8 @@ win:
 stage('NuGet', """
 win:
     mkdir NuGet
-    powershell -Command "iwr -OutFile ./NuGet/nuget.exe https://dist.nuget.org/win-x86-commandline/latest/nuget.exe"
+    powershell.exe -NoProfile -NonInteractive -Command "iwr -OutFile ./NuGet/nuget.exe https://dist.nuget.org/win-x86-commandline/v7.6.0/nuget.exe"
+    powershell.exe -NoProfile -NonInteractive -Command "$version = (& './NuGet/nuget.exe' | Select-String '^NuGet Version:').Line; if ($LASTEXITCODE -ne 0 -or $version -ne 'NuGet Version: 7.6.0') { throw ('Unexpected NuGet version: ' + $version) }"
 """, 'ThirdParty')
 
 stage('jom', """
@@ -522,6 +523,7 @@ mac:
 stage('lzma', """
 win:
     git clone https://github.com/desktop-app/lzma.git
+    git -C lzma checkout --detach 455a368eec2ac5d94de4de71bbf7a8a0fa0d72b7
     cd lzma\\C\\Util\\LzmaLib
     SET "ToolsetProp="
 winarm:
@@ -721,6 +723,7 @@ mac:
 stage('gas-preprocessor', """
 win:
     git clone https://github.com/FFmpeg/gas-preprocessor
+    git -C gas-preprocessor checkout --detach ac1836309c2e77023c228b7184485597286289d3
     cd gas-preprocessor
     echo @echo off > cpp.bat
     echo cl %%%%%%** >> cpp.bat

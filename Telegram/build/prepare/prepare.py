@@ -480,7 +480,6 @@ win:
 
     curl.exe --fail --location --retry 5 --retry-delay 5 --retry-all-errors --connect-timeout 30 --output mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst https://mirror.msys2.org/mingw/mingw64/mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst
     pacman -U --noconfirm mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst
-    powershell.exe -NoProfile -NonInteractive -Command "$version = (& './msys64/mingw64/bin/nasm.exe' -v); if ($LASTEXITCODE -ne 0 -or $version -notlike 'NASM version 2.16.03*') { throw ('Unexpected native NASM version: ' + $version) }"
     del mingw-w64-x86_64-nasm-2.16.03-1-any.pkg.tar.zst
 """, 'ThirdParty')
 

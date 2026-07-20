@@ -1,7 +1,19 @@
 name: TZ Windows Release
 
 on:
+  push:
+    branches:
+      - main
   workflow_dispatch:
+    inputs:
+      runner:
+        description: Windows runner label
+        required: true
+        default: windows-2022
+        type: choice
+        options:
+          - windows-2022
+          - tz-windows-x64
 
 permissions:
   contents: read
@@ -9,7 +21,7 @@ permissions:
 jobs:
   windows-release-x64:
     name: Windows Release x64
-    runs-on: windows-2022
+    runs-on: ${{ (github.event_name == 'workflow_dispatch' && inputs.runner) || 'windows-2022' }}
     timeout-minutes: 355
 
     env:
@@ -25,6 +37,7 @@ jobs:
           path: build-root/tdesktop
           fetch-depth: 1
           persist-credentials: false
+          clean: false
 
       - name: Select Python 3.10
         uses: actions/setup-python@v6
@@ -39,8 +52,23 @@ jobs:
           $vsPath = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
           if ($LASTEXITCODE -ne 0 -or -not $vsPath) { throw 'Visual Studio 2022 C++ tools were not found.' }
           "VS_PATH=$vsPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $toolset = (Get-Content -LiteralPath (Join-Path $vsPath 'VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt') -Raw).Trim()
+          $image = if ($env:ImageVersion) { $env:ImageVersion } else { 'self-hosted' }
+          "TZ_MSVC_TOOLSET=$toolset" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "TZ_RUNNER_IMAGE=$image" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Restore Release dependencies
+        id: deps-cache
+        continue-on-error: true
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            ${{ env.BUILD_ROOT }}\Libraries
+            ${{ env.BUILD_ROOT }}\ThirdParty
+          key: tz-deps-windows-x64-${{ env.TZ_RUNNER_IMAGE }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-python-3.10-${{ hashFiles('build-root/tdesktop/Telegram/build/prepare/**', 'build-root/tdesktop/.gitmodules', 'build-root/tdesktop/Telegram/.gitmodules') }}
 
       - name: Prepare Release dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true'
         shell: cmd
         working-directory: '${{ env.BUILD_ROOT }}'
         run: |
@@ -52,6 +80,16 @@ jobs:
           set "MSBUILDDISABLENODEREUSE=1"
           "%BUILD_ROOT%\tdesktop\Telegram\build\prepare\win.bat" silent
 
+      - name: Save Release dependencies
+        if: steps.deps-cache.outputs.cache-hit != 'true' && success()
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ${{ env.BUILD_ROOT }}\Libraries
+            ${{ env.BUILD_ROOT }}\ThirdParty
+          key: tz-deps-windows-x64-${{ env.TZ_RUNNER_IMAGE }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-python-3.10-${{ hashFiles('build-root/tdesktop/Telegram/build/prepare/**', 'build-root/tdesktop/.gitmodules', 'build-root/tdesktop/Telegram/.gitmodules') }}
+
       - name: Configure TZ Release x64
         shell: cmd
         run: |
@@ -62,17 +100,70 @@ jobs:
             -D TDESKTOP_API_TEST=ON ^
             -D CMAKE_CONFIGURATION_TYPES=Release ^
             -D DESKTOP_APP_SPECIAL_TARGET=win64 ^
-            -D DESKTOP_APP_ENABLE_LTO=ON ^
+            -D DESKTOP_APP_ENABLE_LTO=OFF ^
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
             -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
           if errorlevel 1 exit /b 1
 
       - name: Build TZ Release x64
-        shell: cmd
+        shell: pwsh
         run: |
+          $outRoot = Join-Path $env:BUILD_ROOT 'tdesktop\out'
+          $estimated = (Get-ChildItem -LiteralPath $outRoot -Recurse -Filter '*.vcxproj' -File |
+            Select-String -SimpleMatch '<ClCompile Include=' |
+            Measure-Object).Count
+          $existing = @(Get-ChildItem -LiteralPath $outRoot -Recurse -Filter '*.obj' -File -ErrorAction SilentlyContinue).Count
+          $initialPercent = if ($estimated -gt 0) { [Math]::Min(100, [Math]::Round(($existing * 100.0) / $estimated, 1)) } else { 'n/a' }
+          Write-Host "::notice::approximate compile progress: $existing / $estimated .obj (~$initialPercent%)."
+
+          $buildScript = Join-Path $env:RUNNER_TEMP 'tz-build-release.cmd'
+          @'
+          @echo off
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
           if errorlevel 1 exit /b 1
           MSBuild.exe "%BUILD_ROOT%\tdesktop\out\Telegram.sln" /m:2 /t:Telegram /p:Configuration=Release /p:Platform=x64 /nr:false /p:CL_MPCount=1 /p:UseMultiToolTask=false
+          exit /b %errorlevel%
+          '@ | Set-Content -LiteralPath $buildScript -Encoding ascii
+
+          $monitorScript = Join-Path $env:RUNNER_TEMP 'tz-approximate-progress.ps1'
+          @'
+          while ($true) {
+            Start-Sleep -Seconds 240
+            if (-not (Get-Process -Id ([int]$env:TZ_PROGRESS_BUILD_PID) -ErrorAction SilentlyContinue)) { break }
+            try {
+              $done = @(Get-ChildItem -LiteralPath $env:TZ_PROGRESS_ROOT -Recurse -Filter '*.obj' -File -ErrorAction SilentlyContinue).Count
+              $total = [int]$env:TZ_PROGRESS_TOTAL
+              $percent = if ($total -gt 0) { [Math]::Min(100, [Math]::Round(($done * 100.0) / $total, 1)) } else { 'n/a' }
+              Write-Host "::notice::approximate compile progress: $done / $total .obj (~$percent%)."
+            } catch {
+              Write-Warning "Approximate progress monitor unavailable: $($_.Exception.Message)"
+            }
+          }
+          '@ | Set-Content -LiteralPath $monitorScript -Encoding utf8
+
+          $build = Start-Process -FilePath $env:ComSpec -ArgumentList @('/d', '/c', $buildScript) -NoNewWindow -PassThru
+          $env:TZ_PROGRESS_ROOT = $outRoot
+          $env:TZ_PROGRESS_TOTAL = [string]$estimated
+          $env:TZ_PROGRESS_BUILD_PID = [string]$build.Id
+          $monitor = $null
+          try {
+            try {
+              $monitor = Start-Process -FilePath (Get-Command pwsh).Source -ArgumentList @('-NoProfile', '-File', $monitorScript) -NoNewWindow -PassThru
+            } catch {
+              Write-Warning "Approximate progress monitor could not start: $($_.Exception.Message)"
+            }
+            while (-not $build.HasExited) {
+              Start-Sleep -Seconds 10
+              $build.Refresh()
+            }
+            $build.WaitForExit()
+            if ($build.ExitCode -ne 0) { throw "MSBuild failed with exit code $($build.ExitCode)" }
+          } finally {
+            if ($monitor -and -not $monitor.HasExited) {
+              Stop-Process -Id $monitor.Id -Force -ErrorAction SilentlyContinue
+            }
+            Remove-Item -LiteralPath $buildScript, $monitorScript -Force -ErrorAction SilentlyContinue
+          }
 
       - name: Build installer and archives
         shell: pwsh

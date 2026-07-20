@@ -1,7 +1,8 @@
 # TZ/假飞机项目跨电脑接管文档
 
 > 状态快照日期：2026-07-20（Asia/Shanghai）  
-> 适用项目：TZ Desktop 1.0.1 + TZ 定制 gramsrv  
+> 适用项目：软件名 TZ，版本 1.0.1；内部中文品牌“天泽集团”；服务端为 TZ 定制 gramsrv  
+> 环境性质：当前服务器与本地环境仅用于跑通、测试和验证，不属于正式上线环境。  
 > 本文只记录可公开、可追溯的非秘密信息。任何密码、API ID/hash、手机号、验证码、2FA、完整邀请 hash、session、env、token、私钥都不得写入仓库。
 
 ## 1. 一页式当前状态
@@ -10,10 +11,10 @@
 
 | 分类 | 当前状态 | 可追溯证据 |
 |---|---|---|
-| 已实现 | 客户端仓库已形成 TZ Desktop 1.0.1 品牌与 Windows Release 工作流；服务端 GitHub 源码快照包含内部账号创建、密码认证、账号视角私聊记录/导出、删除/彻底删除后端与后台 UI 等实现内容 | 客户端内容基线 `5534f32b70b5531a0463b1a0f4caaadcd7309769`；服务端 main `f97348db4947a9479fd67912cfca2dbaef6cb050`、tree `e1846a93cad91835c48dd3256e701392c68e932d` |
+| 已实现 | 客户端仓库已形成软件名 TZ、版本 1.0.1 的品牌与 Windows Release 工作流；服务端 GitHub 源码快照包含内部账号创建、密码认证、账号视角私聊记录/导出、删除/彻底删除后端与后台 UI 等实现内容 | 客户端内容基线 `5534f32b70b5531a0463b1a0f4caaadcd7309769`；服务端 main `f97348db4947a9479fd67912cfca2dbaef6cb050`、tree `e1846a93cad91835c48dd3256e701392c68e932d` |
 | 已提交未发布 | 客户端 `5534f32...` 已在 main，GitHub Actions 正在构建，但还没有可认定为正式发布的 GitHub Release | [run 29742818667](https://github.com/dayou0168/tz-desktop/actions/runs/29742818667) 的 head 为 `5534f32...`，2026-07-20 核验时状态为 `in_progress` |
-| 历史已部署 | 2026-07-19 的部署记录证明服务端快照 `f97348d` 曾部署到生产服务器，并完成 systemd、迁移、Admin API/UI、HTTPS 与发布包验证 | 部署记录中的 source commit/tree 与当前 `dayou0168/tz-server` main 一致；这只是历史部署证据 |
-| 当前部署待核验 | 2026-07-20 严格 BatchMode SSH 只读复核超时，不能确认当前 systemd 进程、二进制链接和哈希仍与 2026-07-19 完全一致 | 当前 `https://tg.tianze8.cc/` 可返回 HTTP 200 与 HSTS；这不能替代 systemd/二进制核验 |
+| 历史测试部署 | 2026-07-19 的部署记录证明服务端快照 `f97348d` 曾部署到当前测试服务器，并完成 systemd、迁移、Admin API/UI、HTTPS 与发布包验证 | 部署记录中的 source commit/tree 与当前 `dayou0168/tz-server` main 一致；这只是历史部署证据 |
+| 当前测试部署待核验 | 2026-07-20 严格 BatchMode SSH 只读复核超时，不能确认当前 systemd 进程、二进制链接和哈希仍与 2026-07-19 完全一致 | 当前 `https://tg.tianze8.cc/` 可返回 HTTP 200 与 HSTS；这不能替代 systemd/二进制核验 |
 | 正在构建 | GitHub run `29742818667` 正在 `Build TZ Release x64`；本机另有 LTO 候选构建正在运行 | 两者都是运行中候选，均不是成功产物、安装包验收或 Release |
 | 未验收 | Windows 双客户端可视行为、消息实时/已读/断线补差分、邀请链接回退、最终安装包和 1.0.1 Release 尚未完成验收 | 必须以实际 Windows 客户端、产物哈希和 GitHub Release 为准 |
 
@@ -32,8 +33,9 @@
 - 仓库：[dayou0168/tz-desktop](https://github.com/dayou0168/tz-desktop)
 - 默认分支：`main`
 - 本文编写时业务/构建内容基线：`5534f32b70b5531a0463b1a0f4caaadcd7309769`
-- 产品版本：`TZ 1.0.1`
-- 产品品牌：`TZ Desktop`
+- 软件名：`TZ`
+- 版本：`1.0.1`
+- 内部中文品牌：`天泽集团`
 - 上游：[telegramdesktop/tdesktop](https://github.com/telegramdesktop/tdesktop)
 - Windows Actions：[TZ Windows Release](https://github.com/dayou0168/tz-desktop/actions/workflows/tz-windows-release.yml)
 - Releases：[tz-desktop/releases](https://github.com/dayou0168/tz-desktop/releases)
@@ -65,14 +67,14 @@
 | `e2b0b0ae27f095b02faa30df5d658ad38bfc5919` | TZ 服务端 Linux Release workflow | GitHub commit 存在且是 `f97348d` 的后继，但当前 main 仍指向 `f97348d`；没有集成到当前 main、没有部署证据 |
 | `fd749459f1b766c43b020e88485ead635ef3b6dd` | 本机集成分支上的同 tree Release workflow | 不在当前 GitHub main；没有部署证据 |
 
-### 2.4 历史生产映射
+### 2.4 历史测试部署映射
 
 下列内容是 2026-07-19 部署记录，不是 2026-07-20 的实时 systemd 复核结果：
 
 - 域名：`tg.tianze8.cc`
 - 历史源码工作目录：`/opt/gramsrv/src`
 - 历史不可变 release 根：`/opt/gramsrv/releases/f97348d-20260719T175542Z`
-- 当前链接约定：`/opt/gramsrv/bin/gramsrv-current`、`/opt/gramsrv/bin/gramsrv-admin-current`
+- 当前测试部署链接约定：`/opt/gramsrv/bin/gramsrv-current`、`/opt/gramsrv/bin/gramsrv-admin-current`
 - systemd：`gramsrv.service`、`gramsrv-admin.service`、`gramsrv-deps.service`
 - MTProto：公网 TCP `2398`
 - Admin API：loopback `2399`
@@ -81,12 +83,12 @@
 - PostgreSQL/Redis：仅 loopback，不应暴露公网
 - 历史 schema：`95|f`
 
-历史服务端发布包：
+历史测试部署发布包：
 
 - 路径：`/opt/gramsrv/artifacts/tz-server-1.0.1-linux-amd64.tar.gz`
 - 大小：`85,936,080` bytes
 - SHA256：`cce49f32a2cf179d859232fb9a1c9bd4e56c7ec0e079e78cec6a187c9e6c80cb`
-- 历史验证：服务器与本地哈希一致，包内 436 项，不含运行时 env、数据库 dump 或私钥
+- 历史验证：当前测试服务器与本地测试环境哈希一致，包内 436 项，不含运行时 env、数据库 dump 或私钥
 
 ## 3. 当前 Windows Release 状态
 
@@ -118,11 +120,11 @@
 | 范围 | 已知状态 | 完成标准 |
 |---|---|---|
 | 客户端密码登录 UI | 服务端密码认证内容已进入 `f97348d`；客户端最终密码登录交互未验收 | 新装客户端以真实账号完成首次密码设置、登录、错误密码、重置后旧密码拒绝/新密码接受的可视 E2E |
-| Telegram 字样品牌清理 | 已有 TZ 品牌提交，但 README 与客户端上游遗留文字仍存在 | 对安装器、窗口、登录页、菜单、通知、协议提示、关于页做全量可视审查，只保留依法必须保留的上游署名 |
-| 后台重复创建账号入口 | 源码快照包含相关修复内容 | 生产后台确认只有一个明确入口，刷新与窄屏下不重复 |
-| 创建/重置密码 UI | 源码与历史 E2E 有实现证据 | 在当前生产二进制和真实浏览器中重新验收创建、重置、错误提示与权限边界 |
-| 账号视角私聊记录/批量导出 | 后端与 UI 内容已进入快照，历史 E2E 通过 | 用当前生产数据做分页、账号级与单会话导出、下载内容和大数据量验证 |
-| 勾选删除 | 已有批量选择/删除路径 | 对非空会话、跨页选择、撤销/确认、权限和审计记录做生产验收 |
+| Telegram 字样品牌清理 | 已有 TZ 品牌提交；客户端可见运行时文字仍需最终替换为“天泽集团”。仓库源码中的技术标识、上游项目名和上游链接不属于运行时 UI | 对安装器、窗口、登录页、菜单、通知、协议提示、关于页等客户端可见运行时文字做全量可视审查，最终统一替换为“天泽集团” |
+| 后台重复创建账号入口 | 源码快照包含相关修复内容 | 当前测试后台确认只有一个明确入口，刷新与窄屏下不重复 |
+| 创建/重置密码 UI | 源码与历史 E2E 有实现证据 | 在当前测试部署的二进制和真实浏览器中重新验收创建、重置、错误提示与权限边界 |
+| 账号视角私聊记录/批量导出 | 后端与 UI 内容已进入快照，历史 E2E 通过 | 用当前测试数据做分页、账号级与单会话导出、下载内容和大数据量验证 |
+| 勾选删除 | 已有批量选择/删除路径 | 对非空会话、跨页选择、撤销/确认、权限和审计记录在当前测试后台验收 |
 | 媒体占位 | 当前设计为文字占位，不导出媒体二进制 | 图片、视频、语音、文件、贴纸等类型都要显示稳定且不泄露媒体内容 |
 | 彻底删除 | 历史空会话 delete/purge E2E 通过 | 非空真实数据下验证预览、二次确认、物理删除、幂等、审计和不可恢复边界 |
 | 群邀请链接 | 静态可点击与协议未注册回退未完成验收 | Windows 已注册/未注册协议两种环境都能得到可理解、可继续操作的结果 |
@@ -133,7 +135,7 @@
 | 安装包与 1.0.1 发布 | Actions 和本地构建均在运行 | 产物成功、SHA256 一致、干净 Windows 安装/卸载/便携包验收、创建 tag 与 GitHub Release |
 | 语音通话 | 明确冻结 | 不改 voice/TURN/SFU；待安装包稳定且用户明确重开后再排期双客户端验收 |
 | 服务端未集成/未部署 | `e2b0b0a` / `fd749459` 的 Linux Release workflow 不在当前 main | 决定是否需要后再单独集成；不得把它写成已部署 |
-| 当前服务端在线状态 | SSH 实时复核失败 | 从获授权的新电脑只读核验 systemd、二进制 symlink/hash、schema、监听和 API/UI，再更新本文 |
+| 当前测试服务器在线状态 | SSH 实时复核失败 | 从获授权的新电脑只读核验 systemd、二进制 symlink/hash、schema、监听和 API/UI，再更新本文 |
 
 ## 5. 服务端迁移、部署与回滚
 
@@ -154,7 +156,7 @@
 5. 原子切换 `gramsrv-current` 和 `gramsrv-admin-current` symlink。
 6. `daemon-reload` 并串行重启依赖、主服务、Admin；逐个检查 active/enabled。
 7. 验证 schema、2398、loopback 2399/2600、HTTPS、登录/session/logout、密码、记录/导出、删除/purge。
-8. 生成发布包与 `.sha256`，服务器和接管电脑各核验一次。
+8. 生成发布包与 `.sha256`，当前测试服务器和接管电脑各核验一次。
 9. 删除临时 helper、临时 auth/session 与中间包；保留正式 artifact、manifest、备份和回滚说明。
 
 ### 5.3 回滚原则
@@ -162,21 +164,21 @@
 - 回滚优先切回上一组已验证的版本化二进制 symlink，再串行重启并核验。
 - 不要默认执行 down migration；若新 schema 与旧二进制不兼容，按部署前备份恢复或采用经过审查的 forward fix。
 - 回滚后必须重新核验 systemd、schema、监听、HTTPS、登录和消息，不以“进程启动”作为完成。
-- 任何秘密配置仍保留在服务器配置文件中，不进入 release 包、日志摘录或 GitHub。
+- 任何秘密配置仍保留在当前测试服务器配置文件中，不进入 release 包、日志摘录或 GitHub。
 
 ## 6. 官方 Reaction/贴纸 seed
 
 当前服务端源码的配置入口为 `TELESRV_STICKER_SEED_DIR`，默认相对路径 `data/sticker-seed`。2026-07-19 的历史证据包括：
 
 - importer 测试：74 个 reactions、9 个 sticker sets、907 个 documents、1814 个导入 blobs
-- 服务器导入后：74 个 available reactions、9 个 sticker sets、907 个 seed documents、0 个缺失主 blob
+- 当前测试服务器历史导入后：74 个 available reactions、9 个 sticker sets、907 个 seed documents、0 个缺失主 blob
 - 导入后数据库总 blobs 为 1952，其中包含导入前已有数据
 - 规范化 manifest SHA256：`656701c3361c902135c21b958c32869a82b2c90d9fc65c8d78c81a5e36d8d692`
 - manifest：1825 个内容哈希，零不匹配；临时授权/session 已清理
 
 待核验事项：
 
-- 当前服务器实际使用的 seed 绝对路径
+- 当前测试服务器实际使用的 seed 绝对路径
 - 当前 seed 目录与数据库计数是否仍一致
 - 当前 seed archive 的正式文件名、安装包 SHA256 与服务器留存位置
 
@@ -225,7 +227,7 @@ git submodule status --recursive
 ```text
 你负责 TZ/假飞机项目总控。先阅读 docs/TZ_PROJECT_HANDOFF.zh-CN.md，
 再通过 GitHub API 实时核验 tz-desktop/main、tz-server/main、Actions、Releases，
-并在获得服务器授权后只读核验 systemd、二进制 symlink/hash、schema、监听与 HTTPS。
+并在获得当前测试服务器授权后只读核验 systemd、二进制 symlink/hash、schema、监听与 HTTPS。
 
 总控任务保持只读，不修改业务代码；实现、构建、测试、部署分别派发到独立模块任务。
 模块任务优先使用模型 5.6sol、reasoning high；若当前环境不可用，必须明确报告，
@@ -241,8 +243,8 @@ git submodule status --recursive
 | GitHub commit/tree | 某一份源码和文档已进入指定 ref；tree diff 可证明快照包含哪些内容 | 不能证明构建成功、已部署或用户可见行为正确 |
 | GitHub Actions run | 指定 head 的自动化步骤状态、日志与 artifacts | `queued`/`in_progress` 不是成功；artifact 不是 Release |
 | GitHub Release/tag | 某 commit 的正式发布记录、发布资产与公开 URL | 仍不能替代安装后运行验收 |
-| 服务器 systemd | 当前 unit、进程、启动时间、ExecStart 和 active/enabled | 单纯 active 不能证明 API、协议、数据和客户端正常 |
-| 服务器二进制/symlink/hash | 当前实际运行文件与发布包是否对应固定版本 | 不能证明数据库迁移和客户端可见功能 |
+| 当前测试服务器 systemd | 当前 unit、进程、启动时间、ExecStart 和 active/enabled | 单纯 active 不能证明 API、协议、数据和客户端正常 |
+| 当前测试服务器二进制/symlink/hash | 当前实际运行文件与发布包是否对应固定版本 | 不能证明数据库迁移和客户端可见功能 |
 | 数据库 schema/计数 | migration 与 seed 数据当前状态 | 不能证明 Windows UI 能显示或交互 |
 | HTTPS/API E2E | Web/Admin 入口和具体接口在当前环境工作 | HTTPS 200 不能证明 MTProto 2398 或 Windows 客户端 |
 | Windows 双客户端可视验收 | 登录、消息、已读、断线恢复、Reaction/贴纸等真实体验 | 一次截图不能证明重启、离线恢复和长期稳定性 |
@@ -254,7 +256,7 @@ git submodule status --recursive
 1. `tz-desktop/main` 与 `tz-server/main` 的精确 SHA。
 2. run `29742818667` 的最终状态与 conclusion。
 3. Releases/tag 的实际数量、资产名和 SHA256。
-4. 当前服务器三项 systemd unit、二进制 symlink/hash、schema 与监听。
+4. 当前测试服务器三项 systemd unit、二进制 symlink/hash、schema 与监听。
 5. 当前 seed 路径、manifest/hash、Reaction/贴纸计数。
 6. 是否存在经过验收的 TZ 1.0.1 安装包。
 7. 将所有“待核验”更新为带日期和证据的结果；仍无证据的继续保留为待核验。

@@ -4,11 +4,11 @@ import sys
 
 def ensure_plugin_directories(qt_root, modules):
     for module in modules:
-        mkspecs = qt_root / module / 'mkspecs'
-        if not mkspecs.is_dir():
-            raise NotADirectoryError('Qt module mkspecs directory was not found: ' + str(mkspecs))
-        target = mkspecs / 'modules-inst'
-        target.mkdir(exist_ok=True)
+        module_root = qt_root / module
+        if not module_root.is_dir():
+            raise NotADirectoryError('Qt module directory was not found: ' + str(module_root))
+        target = module_root / 'mkspecs' / 'modules-inst'
+        target.mkdir(parents=True, exist_ok=True)
         if not target.is_dir():
             raise NotADirectoryError('Qt plugin metadata path is not a directory: ' + str(target))
 

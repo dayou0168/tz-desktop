@@ -32,20 +32,53 @@ class EnsureQtPluginDirsTest(unittest.TestCase):
             text=True,
             check=False)
 
-    def test_creates_missing_plugin_directories(self):
+    def test_creates_missing_mkspecs_and_plugin_directories(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             modules = ('qtimageformats', 'qtsvg')
             for module in modules:
-                (root / module / 'mkspecs').mkdir(parents=True)
+                (root / module).mkdir()
 
             result = self.run_helper(root, *modules)
 
             self.assertEqual(result.returncode, 0, result.stderr)
             for module in modules:
+                self.assertTrue((root / module / 'mkspecs').is_dir())
                 self.assertTrue((root / module / 'mkspecs' / 'modules-inst').is_dir())
 
-    def test_returns_failure_for_invalid_target(self):
+    def test_returns_failure_for_missing_module_root(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+
+            result = self.run_helper(root, 'qtimageformats')
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('Qt module directory was not found', result.stderr)
+
+    def test_returns_failure_for_module_root_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            module_root = root / 'qtimageformats'
+            module_root.write_text('not a directory', encoding='utf-8')
+
+            result = self.run_helper(root, 'qtimageformats')
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('Qt module directory was not found', result.stderr)
+
+    def test_returns_failure_for_mkspecs_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = pathlib.Path(temporary)
+            mkspecs = root / 'qtimageformats' / 'mkspecs'
+            mkspecs.parent.mkdir()
+            mkspecs.write_text('not a directory', encoding='utf-8')
+
+            result = self.run_helper(root, 'qtimageformats')
+
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn('FileExistsError', result.stderr)
+
+    def test_returns_failure_for_modules_inst_file(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = pathlib.Path(temporary)
             target = root / 'qtimageformats' / 'mkspecs' / 'modules-inst'

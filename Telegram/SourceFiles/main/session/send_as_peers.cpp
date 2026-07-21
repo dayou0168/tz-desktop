@@ -7,6 +7,8 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "main/session/send_as_peers.h"
 
+#include "main/session/send_as_policy.h"
+
 #include "data/data_user.h"
 #include "data/data_channel.h"
 #include "data/data_session.h"
@@ -46,7 +48,21 @@ SendAsPeers::SendAsPeers(not_null<Session*> session)
 
 bool SendAsPeers::shouldChoose(SendAsKey key) {
 	refresh(key);
-	if (list(key).size() < 2) {
+	const auto availableIdentities = int(list(key).size());
+	if (key.type == SendAsType::Message) {
+		const auto dialog = key.peer->isBroadcast()
+			? SendAsPolicy::DialogKind::BroadcastChannel
+			: key.peer->isMegagroup()
+			? SendAsPolicy::DialogKind::Megagroup
+			: key.peer->isChat()
+			? SendAsPolicy::DialogKind::BasicGroup
+			: SendAsPolicy::DialogKind::Other;
+		return SendAsPolicy::CanChooseMessageIdentity(
+			dialog,
+			Data::CanSendAnything(key.peer, false),
+			availableIdentities);
+	}
+	if (availableIdentities < 2) {
 		return false;
 	}
 	if (key.type == SendAsType::VideoStream) {

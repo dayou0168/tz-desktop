@@ -149,6 +149,7 @@ if win and 'NoDefaultCurrentDirectoryInExePath' in modifiedEnv:
     del modifiedEnv['NoDefaultCurrentDirectoryInExePath']
 
 modifiedEnv['PATH'] = environment['PATH_PREFIX'] + modifiedEnv['PATH']
+modifiedEnv['PREPARE_SCRIPT_DIR'] = scriptPath
 
 def computeFileHash(path):
     sha1 = hashlib.sha1()
@@ -1565,6 +1566,7 @@ win:
         -nomake tests ^
         -platform win32-msvc
 
+    python "%PREPARE_SCRIPT_DIR%\\ensure_qt_plugin_dirs.py" . qtimageformats qtsvg
     jom -j%NUMBER_OF_PROCESSORS%
     jom -j%NUMBER_OF_PROCESSORS% install
 """)

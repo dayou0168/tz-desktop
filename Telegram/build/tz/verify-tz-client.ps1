@@ -120,6 +120,13 @@ Assert-Contains '.github\workflows\tz-windows-release.yml' "`$node.InnerText = '
 Assert-Contains '.github\workflows\tz-windows-release.yml' 'cmake --build "%BUILD_ROOT%\tdesktop\out" --config Release --target tz_contract_tests -- /m:1 /nr:false /p:BuildInParallel=false /p:CL_MPCount=1 /p:UseMultiToolTask=true /p:EnforceProcessCountAcrossBuilds=true'
 Assert-Contains '.github\workflows\tz-windows-release.yml' 'MSBuild.exe "%BUILD_ROOT%\tdesktop\out\Telegram.sln" /m:1 /t:Telegram /p:Configuration=Release /p:Platform=x64 /nr:false /p:BuildInParallel=false /p:CL_MPCount=1 /p:UseMultiToolTask=true /p:EnforceProcessCountAcrossBuilds=true'
 Assert-NotContains '.github\workflows\tz-windows-release.yml' '/MP1'
+Assert-Contains 'Telegram\build\prepare\prepare.py' "modifiedEnv['PREPARE_SCRIPT_DIR'] = scriptPath"
+Assert-Contains 'Telegram\build\prepare\prepare.py' 'python "%PREPARE_SCRIPT_DIR%\\ensure_qt_plugin_dirs.py" . qtimageformats qtsvg'
+
+& python (Join-Path $RepositoryRoot 'Telegram\build\prepare\test_ensure_qt_plugin_dirs.py')
+if ($LASTEXITCODE -ne 0) {
+    throw "Qt plugin directory guard tests failed with exit code $LASTEXITCODE."
+}
 Assert-Contains 'Telegram\CMakeLists.txt' '${src_loc}/window/window_peer_menu.cpp'
 Assert-Contains 'Telegram\CMakeLists.txt' '${src_loc}/window/window_session_controller.cpp'
 Assert-Contains 'Telegram\CMakeLists.txt' '$<$<CONFIG:Release>:/Ob1>'

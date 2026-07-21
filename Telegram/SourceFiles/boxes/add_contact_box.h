@@ -128,6 +128,9 @@ protected:
 
 private:
 	void createChannel(const QString &title, const QString &description);
+	void createEmptyGroup(
+		base::weak_qptr<Ui::BoxContent> selectUsersBox,
+		const QString &title);
 	void createGroup(
 		base::weak_qptr<Ui::BoxContent> selectUsersBox,
 		const QString &title,

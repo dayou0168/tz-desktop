@@ -6,6 +6,7 @@ For license and copyright information please follow this link:
 https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 */
 #include "boxes/add_contact_box.h"
+#include "boxes/group_creation_contract.h"
 
 #include "lang/lang_keys.h"
 #include "base/call_delayed.h"
@@ -120,6 +121,63 @@ void ChatCreateDone(
 	if (!success) {
 		LOG(("API Error: chat not found in updates "
 			"(ContactsBox::creationDone)"));
+	}
+}
+
+void EmptyGroupCreateDone(
+		not_null<Window::SessionNavigation*> navigation,
+		QImage image,
+		TimeId ttlPeriod,
+		const MTPUpdates &result,
+		Fn<void(not_null<PeerData*>)> done) {
+	navigation->session().api().applyUpdates(result);
+
+	const auto success = base::make_optional(&result)
+		| [](auto updates) -> std::optional<const QVector<MTPChat>*> {
+			switch (updates->type()) {
+			case mtpc_updates:
+				return &updates->c_updates().vchats().v;
+			case mtpc_updatesCombined:
+				return &updates->c_updatesCombined().vchats().v;
+			}
+			LOG(("API Error: unexpected update cons %1 "
+				"(GroupInfoBox::emptyGroupCreationDone)").arg(
+					updates->type()));
+			return std::nullopt;
+		}
+		| [](auto chats) {
+			return (!chats->empty()
+				&& chats->front().type() == mtpc_channel)
+				? base::make_optional(chats)
+				: std::nullopt;
+		}
+		| [&](auto chats) {
+			return navigation->session().data().channel(
+				chats->front().c_channel().vid());
+		}
+		| [&](not_null<ChannelData*> channel) {
+			if (!image.isNull()) {
+				channel->session().api().peerPhoto().upload(
+					channel,
+					{ std::move(image) });
+			}
+			if (ttlPeriod) {
+				channel->setMessagesTTL(ttlPeriod);
+			}
+			channel->session().api().requestFullPeer(channel);
+			if (done) {
+				done(channel);
+			} else {
+				navigation->showPeerHistory(channel);
+				channel->owner().addRecentJoinChat({
+					.fromPeerId = channel->id,
+					.joinedPeerId = channel->id,
+				});
+			}
+		};
+	if (!success) {
+		LOG(("API Error: channel not found in updates "
+			"(GroupInfoBox::emptyGroupCreationDone)"));
 	}
 }
 
@@ -622,12 +680,20 @@ void GroupInfoBox::prepare() {
 	_title->submits(
 	) | rpl::on_next([=] { submitName(); }, _title->lifetime());
 
-	addButton(
+	const auto submitButton = addButton(
 		((_type != Type::Group || _canAddBot)
 			? tr::lng_create_group_create()
 			: tr::lng_create_group_next()),
 		[=] { submit(); });
 	addButton(tr::lng_cancel(), [this] { closeBox(); });
+	if (_type == Type::Group) {
+		const auto updateSubmit = [=] {
+			submitButton->setDisabled(!GroupCreation::HasValidTitle(
+				_title->getLastText()));
+		};
+		_title->changes() | rpl::on_next(updateSubmit, _title->lifetime());
+		updateSubmit();
+	}
 
 	if (_type == Type::Group) {
 		_navigation->session().api().selfDestruct().reload();
@@ -744,6 +810,15 @@ void GroupInfoBox::createGroup(
 			inputs.push_back(user->inputUser());
 		}
 	}
+	const auto plan = GroupCreation::MakePlan(title, int(inputs.size()));
+	if (!plan.createsGroup()) {
+		_title->setFocus();
+		_title->showError();
+		return;
+	} else if (plan.mode == GroupCreation::Mode::EmptyMegagroup) {
+		createEmptyGroup(selectUsersBox, title);
+		return;
+	}
 	_creationRequestId = _api.request(MTPmessages_CreateChat(
 		MTP_flags(MTPmessages_CreateChat::Flag::f_ttl_period),
 		MTP_vector<TLUsers>(inputs),
@@ -769,9 +844,14 @@ void GroupInfoBox::createGroup(
 			if (weak) {
 				_title->showError();
 			}
-		} else if (type == u"USERS_TOO_FEW"_q) {
+		} else if (GroupCreation::IsInvitePrivacyError(
+				type,
+				int(inputs.size()))) {
 			controller->show(
 				Ui::MakeInformBox(tr::lng_cant_invite_privacy()));
+		} else if (type == u"USERS_TOO_FEW"_q) {
+			controller->show(
+				Ui::MakeInformBox(tr::lng_failed_add_participant()));
 		} else if (type == u"PEER_FLOOD"_q) {
 			controller->show(Ui::MakeInformBox(
 				PeerFloodErrorText(
@@ -779,6 +859,53 @@ void GroupInfoBox::createGroup(
 					PeerFloodType::InviteGroup)));
 		} else if (type == u"USER_RESTRICTED"_q) {
 			controller->show(Ui::MakeInformBox(tr::lng_cant_do_this()));
+		}
+	}).send();
+}
+
+void GroupInfoBox::createEmptyGroup(
+		base::weak_qptr<Ui::BoxContent> selectUsersBox,
+		const QString &title) {
+	Expects(!_creationRequestId);
+
+	using Flag = MTPchannels_CreateChannel::Flag;
+	const auto flags = Flag::f_megagroup | Flag::f_ttl_period;
+	_creationRequestId = _api.request(MTPchannels_CreateChannel(
+		MTP_flags(flags),
+		MTP_string(title),
+		MTP_string(QString()),
+		MTPInputGeoPoint(),
+		MTPstring(),
+		MTP_int(ttlPeriod())
+	)).done([=](const MTPUpdates &result) {
+		auto image = _photo->takeResultImage();
+		const auto period = ttlPeriod();
+		const auto navigation = _navigation;
+		const auto done = _done;
+
+		getDelegate()->hideLayer();
+		EmptyGroupCreateDone(
+			navigation,
+			std::move(image),
+			period,
+			result,
+			done);
+	}).fail([=](const MTP::Error &error) {
+		const auto &type = error.type();
+		_creationRequestId = 0;
+		const auto controller = _navigation->parentController();
+		if (type == u"NO_CHAT_TITLE"_q) {
+			const auto weak = base::make_weak(this);
+			if (const auto strong = selectUsersBox.get()) {
+				strong->closeBox();
+			}
+			if (weak) {
+				_title->showError();
+			}
+		} else if (type == u"USER_RESTRICTED"_q) {
+			controller->show(Ui::MakeInformBox(tr::lng_cant_do_this()));
+		} else if (type == u"CHANNELS_TOO_MUCH"_q) {
+			controller->show(Box(ChannelsLimitBox, &controller->session()));
 		}
 	}).send();
 }

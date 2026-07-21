@@ -76,8 +76,10 @@ int main() {
 	};
 	for (const auto path : specialPaths) {
 		if (!Rewrites(
-				QStringView(u"https://tg.tianze8.cc/").toString() + path,
-				QStringView(u"https://t.me/").toString() + path)) {
+				QStringView(u"https://tg.tianze8.cc/").toString()
+					+ path.toString(),
+				QStringView(u"https://t.me/").toString()
+					+ path.toString())) {
 			return 10;
 		}
 	}

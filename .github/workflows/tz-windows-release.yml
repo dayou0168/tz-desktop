@@ -323,20 +323,44 @@ jobs:
           @echo off
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
           if errorlevel 1 exit /b 1
-          MSBuild.exe "%BUILD_ROOT%\tdesktop\out\Telegram.sln" /m:2 /t:Telegram /p:Configuration=Release /p:Platform=x64 /nr:false /p:CL_MPCount=1 /p:UseMultiToolTask=false
+          MSBuild.exe "%BUILD_ROOT%\tdesktop\out\Telegram.sln" /m:1 /t:Telegram /p:Configuration=Release /p:Platform=x64 /nr:false /p:BuildInParallel=false /p:CL_MPCount=1 /p:UseMultiToolTask=false
           exit /b %errorlevel%
           '@ | Set-Content -LiteralPath $buildScript -Encoding ascii
 
           $monitorScript = Join-Path $env:RUNNER_TEMP 'tz-approximate-progress.ps1'
           @'
+          function Write-SystemResources {
+            try {
+              $os = Get-CimInstance -ClassName Win32_OperatingSystem -ErrorAction Stop
+              $memory = Get-CimInstance -ClassName Win32_PerfFormattedData_PerfOS_Memory -ErrorAction Stop
+              $freePhysicalGiB = [Math]::Round(([double]$os.FreePhysicalMemory * 1KB) / 1GB, 2)
+              $totalPhysicalGiB = [Math]::Round(([double]$os.TotalVisibleMemorySize * 1KB) / 1GB, 2)
+              $committedGiB = [Math]::Round(([double]$memory.CommittedBytes) / 1GB, 2)
+              $commitLimitGiB = [Math]::Round(([double]$memory.CommitLimit) / 1GB, 2)
+              $buildPrivateGiB = [Math]::Round(((@(Get-Process -Name MSBuild, cl, link, mspdbsrv -ErrorAction SilentlyContinue) |
+                Measure-Object -Property PrivateMemorySize64 -Sum).Sum) / 1GB, 2)
+              Write-Host "::notice::runner resources: physical free $freePhysicalGiB / $totalPhysicalGiB GiB; committed $committedGiB / $commitLimitGiB GiB; build-process private $buildPrivateGiB GiB."
+            } catch {
+              Write-Warning "Runner resource snapshot unavailable: $($_.Exception.Message)"
+            }
+          }
+
+          $releaseDirectories = @(Get-ChildItem -LiteralPath $env:TZ_PROGRESS_ROOT -Recurse -Directory -Force -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -eq 'Release' -and $_.Parent.Name -like '*.dir' } |
+            Select-Object -ExpandProperty FullName)
+          Write-SystemResources
           while ($true) {
-            Start-Sleep -Seconds 240
+            Start-Sleep -Seconds 600
             if (-not (Get-Process -Id ([int]$env:TZ_PROGRESS_BUILD_PID) -ErrorAction SilentlyContinue)) { break }
             try {
-              $done = @(Get-ChildItem -LiteralPath $env:TZ_PROGRESS_ROOT -Recurse -Filter '*.obj' -File -ErrorAction SilentlyContinue).Count
+              $done = 0
+              foreach ($directory in $releaseDirectories) {
+                $done += @(Get-ChildItem -LiteralPath $directory -Recurse -Filter '*.obj' -File -ErrorAction SilentlyContinue).Count
+              }
               $total = [int]$env:TZ_PROGRESS_TOTAL
               $percent = if ($total -gt 0) { [Math]::Min(100, [Math]::Round(($done * 100.0) / $total, 1)) } else { 'n/a' }
               Write-Host "::notice::approximate compile progress: $done / $total .obj (~$percent%)."
+              Write-SystemResources
             } catch {
               Write-Warning "Approximate progress monitor unavailable: $($_.Exception.Message)"
             }
@@ -356,7 +380,7 @@ jobs:
               Write-Warning "Approximate progress monitor could not start: $($_.Exception.Message)"
             }
             while (-not $build.HasExited) {
-              Start-Sleep -Seconds 10
+              Start-Sleep -Seconds 30
               $build.Refresh()
             }
             $build.WaitForExit()

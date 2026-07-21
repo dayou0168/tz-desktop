@@ -117,6 +117,8 @@ Assert-Contains '.github\workflows\tz-windows-release.yml' '--target tz_contract
 Assert-Contains '.github\workflows\tz-windows-release.yml' "'tz_internal_url_contract_tests'"
 Assert-Contains '.github\workflows\tz-windows-release.yml' "local-name()='MultiProcessorCompilation'"
 Assert-Contains '.github\workflows\tz-windows-release.yml' "`$node.InnerText = 'false'"
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'cmake --build "%BUILD_ROOT%\tdesktop\out" --config Release --target tz_contract_tests -- /m:1 /nr:false /p:BuildInParallel=false /p:CL_MPCount=1 /p:UseMultiToolTask=true /p:EnforceProcessCountAcrossBuilds=true'
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'MSBuild.exe "%BUILD_ROOT%\tdesktop\out\Telegram.sln" /m:1 /t:Telegram /p:Configuration=Release /p:Platform=x64 /nr:false /p:BuildInParallel=false /p:CL_MPCount=1 /p:UseMultiToolTask=true /p:EnforceProcessCountAcrossBuilds=true'
 Assert-NotContains '.github\workflows\tz-windows-release.yml' '/MP1'
 Assert-Contains 'Telegram\CMakeLists.txt' '${src_loc}/window/window_peer_menu.cpp'
 Assert-Contains 'Telegram\CMakeLists.txt' '${src_loc}/window/window_session_controller.cpp'

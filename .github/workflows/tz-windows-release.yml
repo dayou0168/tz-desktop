@@ -347,7 +347,7 @@ jobs:
         run: |
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
           if errorlevel 1 exit /b 1
-          cmake --build "%BUILD_ROOT%\tdesktop\out" --config Release --target tz_contract_tests -- /m:1 /nr:false /p:BuildInParallel=false
+          cmake --build "%BUILD_ROOT%\tdesktop\out" --config Release --target tz_contract_tests -- /m:1 /nr:false /p:BuildInParallel=false /p:CL_MPCount=1 /p:UseMultiToolTask=true /p:EnforceProcessCountAcrossBuilds=true
           if errorlevel 1 exit /b 1
 
       - name: Run TZ contract tests
@@ -390,7 +390,7 @@ jobs:
           @echo off
           call "%VS_PATH%\VC\Auxiliary\Build\vcvars64.bat"
           if errorlevel 1 exit /b 1
-          MSBuild.exe "%BUILD_ROOT%\tdesktop\out\Telegram.sln" /m:1 /t:Telegram /p:Configuration=Release /p:Platform=x64 /nr:false /p:BuildInParallel=false /p:CL_MPCount=1 /p:UseMultiToolTask=false
+          MSBuild.exe "%BUILD_ROOT%\tdesktop\out\Telegram.sln" /m:1 /t:Telegram /p:Configuration=Release /p:Platform=x64 /nr:false /p:BuildInParallel=false /p:CL_MPCount=1 /p:UseMultiToolTask=true /p:EnforceProcessCountAcrossBuilds=true
           exit /b %errorlevel%
           '@ | Set-Content -LiteralPath $buildScript -Encoding ascii
 

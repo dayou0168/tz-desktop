@@ -22,7 +22,7 @@ int main() {
 	if (QStringView(Tz::kCompanyAscii) != QStringView(u"tianze")) {
 		return 6;
 	}
-	if (QStringView(Tz::kVersion) != QStringView(u"1.0.1")) {
+	if (QStringView(Tz::kVersion) != QStringView(u"1.0.2")) {
 		return 7;
 	}
 	if (QStringView(Tz::kDefaultLanguageId) != QStringView(u"zh-hans")) {

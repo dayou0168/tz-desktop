@@ -1959,6 +1959,15 @@ PRIVATE
     tray.h
 )
 
+if (MSVC)
+    set_property(SOURCE
+        ${src_loc}/window/window_peer_menu.cpp
+        ${src_loc}/window/window_session_controller.cpp
+        APPEND PROPERTY COMPILE_OPTIONS
+            $<$<CONFIG:Release>:/Ob1>
+    )
+endif()
+
 if (APPLE)
     nice_target_sources(Telegram ${src_loc}
     PRIVATE

@@ -7,3 +7,5 @@
 
 # Ensure lottie animations are treated as binary files
 *.lottie binary
+
+.github/workflows/tz-windows-release.yml text eol=crlf

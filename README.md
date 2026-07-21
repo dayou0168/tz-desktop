@@ -1,4 +1,4 @@
-# TZ Desktop 1.0.1
+# TZ Desktop 1.0.2
 
 TZ Desktop is the Windows client for the Tianze private messaging service.
 

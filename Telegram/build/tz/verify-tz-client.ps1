@@ -90,7 +90,38 @@ Assert-Contains 'Telegram\SourceFiles\mtproto\mtproto_config.h' 'https://tg.tian
 
 Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppName = "TZ"_cs'
 Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppFile = "TZ"_cs'
-Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppVersionStr = "1.0.1"'
+Assert-Contains 'Telegram\build\version' 'AppVersion         1000002'
+Assert-Contains 'Telegram\build\version' 'AppVersionStr      1.0.2'
+Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppVersion = 1000002'
+Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppVersionStr = "1.0.2"'
+Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'kVersion = u"1.0.2"'
+Assert-Contains 'Telegram\Resources\winrc\Telegram.rc' 'FILEVERSION 1,0,2,0'
+Assert-Contains 'Telegram\Resources\winrc\Telegram.rc' 'VALUE "FileVersion", "1.0.2.0"'
+Assert-Contains 'Telegram\Resources\winrc\Updater.rc' 'FILEVERSION 1,0,2,0'
+Assert-Contains 'Telegram\Resources\winrc\Updater.rc' 'VALUE "FileVersion", "1.0.2.0"'
+Assert-Contains 'Telegram\Resources\uwp\AppX\AppxManifest.xml' 'Version="1.0.2.0"'
+Assert-Contains '.github\workflows\tz-windows-release.yml' "TZ_VERSION: '1.0.2'"
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'name: TZ-1.0.2-windows-x64-build'
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'artifacts/release/TZ-1.0.2-Setup.exe'
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'artifacts/release/TZ-1.0.2-windows-x64.zip'
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'artifacts/release/TZ-1.0.2-symbols.zip'
+Assert-Contains '.github\workflows\tz-windows-release.yml' '"TZ-$env:TZ_VERSION-Setup.exe",'
+Assert-Contains '.github\workflows\tz-windows-release.yml' '"TZ-$env:TZ_VERSION-windows-x64.zip",'
+Assert-Contains '.github\workflows\tz-windows-release.yml' '"TZ-$env:TZ_VERSION-symbols.zip"'
+Assert-Contains '.github\workflows\tz-windows-release.yml' "(Join-Path `$artifacts 'SHA256SUMS.txt')"
+Assert-NotContains '.github\workflows\tz-windows-release.yml' '1.0.1'
+Assert-Contains 'Telegram\cmake\tz_client_tests.cmake' 'group_creation_contract_tests'
+Assert-Contains 'Telegram\cmake\tz_client_tests.cmake' 'send_as_policy_contract_tests'
+Assert-Contains 'Telegram\cmake\tz_client_tests.cmake' 'tz_internal_url_contract_tests'
+Assert-Contains '.github\workflows\tz-windows-release.yml' '--target tz_contract_tests'
+Assert-Contains '.github\workflows\tz-windows-release.yml' "'tz_internal_url_contract_tests'"
+Assert-Contains '.github\workflows\tz-windows-release.yml' "local-name()='MultiProcessorCompilation'"
+Assert-Contains '.github\workflows\tz-windows-release.yml' "`$node.InnerText = 'false'"
+Assert-NotContains '.github\workflows\tz-windows-release.yml' '/MP1'
+Assert-Contains 'Telegram\CMakeLists.txt' '${src_loc}/window/window_peer_menu.cpp'
+Assert-Contains 'Telegram\CMakeLists.txt' '${src_loc}/window/window_session_controller.cpp'
+Assert-Contains 'Telegram\CMakeLists.txt' '$<$<CONFIG:Release>:/Ob1>'
+Assert-NotContains 'Telegram\CMakeLists.txt' '/MP1'
 Assert-Contains 'Telegram\Resources\winrc\Telegram.rc' ('VALUE "CompanyName", "' + $companyName + '"')
 Assert-Contains 'Telegram\Resources\winrc\Telegram.rc' 'VALUE "ProductName", "TZ"'
 Assert-Contains 'Telegram\Resources\winrc\Updater.rc' 'VALUE "FileDescription", "TZ Updater"'

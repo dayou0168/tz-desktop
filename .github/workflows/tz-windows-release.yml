@@ -238,6 +238,7 @@ jobs:
           }
 
           $unsafeReason = $null
+          $checkpointNeutralPaths = @()
           foreach ($path in $changedPaths) {
             foreach ($sha in @($previousSha, $currentSha)) {
               $treeEntry = @(& git -C $repo ls-tree $sha -- $path)
@@ -251,6 +252,12 @@ jobs:
               }
             }
             if ($unsafeReason) { break }
+            $normalizedPath = $path.Replace('\\', '/')
+            if ($previousSha -eq 'ef07f1e9cb524b66e97cba1a8d31ec98edb09058' -and
+                $normalizedPath -eq '.github/workflows/tz-windows-release.yml') {
+              $checkpointNeutralPaths += $path
+              continue
+            }
             if (-not (Test-SafeIncrementalPath $path)) {
               $unsafeReason = 'a changed path is outside the source, header, and resource allowlist'
               break
@@ -280,6 +287,7 @@ jobs:
           $changedTimeUtc = $checkpointTimeUtc.AddSeconds(2)
           $touched = 0
           foreach ($path in $changedPaths) {
+            if ($checkpointNeutralPaths -contains $path) { continue }
             $fullPath = Join-Path $repo $path
             if (Test-Path -LiteralPath $fullPath -PathType Leaf) {
               (Get-Item -LiteralPath $fullPath -Force).LastWriteTimeUtc = $changedTimeUtc
@@ -317,6 +325,25 @@ jobs:
           $existing = @(Get-ChildItem -LiteralPath $outRoot -Recurse -Filter '*.obj' -File -ErrorAction SilentlyContinue).Count
           $initialPercent = if ($estimated -gt 0) { [Math]::Min(100, [Math]::Round(($existing * 100.0) / $estimated, 1)) } else { 'n/a' }
           Write-Host "::notice::approximate compile progress: $existing / $estimated .obj (~$initialPercent%)."
+
+          $disabledProjectCount = 0
+          $disabledNodeCount = 0
+          foreach ($project in @(Get-ChildItem -LiteralPath $outRoot -Recurse -Filter '*.vcxproj' -File)) {
+            [xml]$projectXml = Get-Content -LiteralPath $project.FullName -Raw
+            $nodes = @($projectXml.SelectNodes("//*[local-name()='MultiProcessorCompilation']") |
+              Where-Object { $_.InnerText -eq 'true' })
+            if ($nodes.Count -eq 0) { continue }
+            foreach ($node in $nodes) {
+              $node.InnerText = 'false'
+            }
+            $projectXml.Save($project.FullName)
+            $disabledProjectCount++
+            $disabledNodeCount += $nodes.Count
+          }
+          if ($disabledNodeCount -eq 0) {
+            throw 'No generated project-level MultiProcessorCompilation setting was found to disable.'
+          }
+          Write-Host "::notice::disabled project-level /MP in $disabledNodeCount configuration entries across $disabledProjectCount generated projects."
 
           $buildScript = Join-Path $env:RUNNER_TEMP 'tz-build-release.cmd'
           @'

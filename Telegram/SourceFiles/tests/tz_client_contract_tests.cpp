@@ -1,4 +1,5 @@
 #include "tz/tz_client_contract.h"
+#include "tz/tz_login_contract.h"
 
 #include <QtCore/QStringView>
 
@@ -41,6 +42,18 @@ int main() {
 	}
 	if (!Tz::LoginPasswordAccepted(QStringView(u"😀😀😀😀😀😀😀😀"))) {
 		return 13;
+	}
+	if (Tz::NormalizeLoginPhone(QStringView(u"+86 (138) 0000-0001"))
+			!= QStringView(u"8613800000001").toString()) {
+		return 26;
+	}
+	if (!Tz::NormalizeLoginPhone(QStringView(u" + - () ")).isEmpty()) {
+		return 27;
+	}
+	auto challenge = QByteArray("one-time-challenge");
+	if (Tz::ConsumeLoginChallenge(challenge) != QByteArray("one-time-challenge")
+			|| !challenge.isEmpty()) {
+		return 28;
 	}
 	if (Tz::ConvertInternalInviteUrl(
 			QStringView(u"tz://join?invite=Abc_1-2.3").toString())

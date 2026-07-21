@@ -11,6 +11,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "intro/intro_widget.h"
 #include "intro/intro_qr.h"
 #include "tz/tz_client_contract.h"
+#include "tz/tz_login_contract.h"
 #include "styles/style_intro.h"
 #include "ui/widgets/buttons.h"
 #include "ui/widgets/labels.h"
@@ -41,11 +42,6 @@ namespace {
 	return (digits > 1);
 }
 
-[[nodiscard]] QString DigitsOnly(QString value) {
-	static const auto RegExp = QRegularExpression("[^0-9]");
-	return value.replace(RegExp, QString());
-}
-
 class PasswordLoginWidget final : public Step {
 public:
 	PasswordLoginWidget(
@@ -67,6 +63,8 @@ protected:
 	void resizeEvent(QResizeEvent *e) override;
 
 private:
+	void submitWithChallenge(QString password);
+	void refreshChallengeAndSubmit(QString password);
 	void submitDone(const MTPauth_Authorization &result);
 	void submitFail(const MTP::Error &error);
 	void showPasswordError(QStringView text);
@@ -143,6 +141,59 @@ void PasswordLoginWidget::submitFail(const MTP::Error &error) {
 	}
 }
 
+void PasswordLoginWidget::submitWithChallenge(QString password) {
+	const auto phoneHash = Tz::ConsumeLoginChallenge(getData()->phoneHash);
+	Expects(!phoneHash.isEmpty());
+
+	_password->setEnabled(false);
+	_sentRequest = api().request(MTPauth_SignIn(
+		MTP_flags(MTPauth_SignIn::Flag::f_phone_code),
+		MTP_string(getData()->phone),
+		MTP_bytes(phoneHash),
+		MTP_string(password),
+		MTP_emailVerificationCode(MTP_string(QString()))
+	)).done([=](const MTPauth_Authorization &result) {
+		submitDone(result);
+	}).fail([=](const MTP::Error &error) {
+		submitFail(error);
+	}).handleFloodErrors().send();
+}
+
+void PasswordLoginWidget::refreshChallengeAndSubmit(QString password) {
+	_password->setEnabled(false);
+	_sentRequest = api().request(MTPauth_SendCode(
+		MTP_string(getData()->phone),
+		MTP_int(ApiId),
+		MTP_string(ApiHash),
+		MTP_codeSettings(
+			MTP_flags(0),
+			MTPVector<MTPbytes>(),
+			MTPstring(),
+			MTPBool())
+	)).done([=](const MTPauth_SentCode &result) {
+		_sentRequest = 0;
+		result.match([&](const MTPDauth_sentCode &data) {
+			getData()->phoneHash = qba(data.vphone_code_hash());
+			submitWithChallenge(password);
+		}, [&](const MTPDauth_sentCodeSuccess &data) {
+			submitDone(data.vauthorization());
+		}, [&](const MTPDauth_sentCodePaymentRequired &) {
+			_password->setEnabled(true);
+			showPasswordError(QStringView(Tz::kLoginIdentityOrPasswordError));
+		});
+	}).fail([=](const MTP::Error &error) {
+		_sentRequest = 0;
+		_password->setEnabled(true);
+		if (MTP::IsFloodError(error)) {
+			showError(tr::lng_flood_error());
+			_password->showError();
+			_password->setFocus();
+		} else if (!MTP::IgnoreError(error)) {
+			showPasswordError(QStringView(Tz::kLoginIdentityOrPasswordError));
+		}
+	}).handleFloodErrors().send();
+}
+
 void PasswordLoginWidget::submit() {
 	if (_sentRequest || isHidden()) {
 		return;
@@ -154,18 +205,11 @@ void PasswordLoginWidget::submit() {
 	}
 
 	hideError();
-	_password->setEnabled(false);
-	_sentRequest = api().request(MTPauth_SignIn(
-		MTP_flags(MTPauth_SignIn::Flag::f_phone_code),
-		MTP_string(getData()->phone),
-		MTP_bytes(getData()->phoneHash),
-		MTP_string(password),
-		MTP_emailVerificationCode(MTP_string(QString()))
-	)).done([=](const MTPauth_Authorization &result) {
-		submitDone(result);
-	}).fail([=](const MTP::Error &error) {
-		submitFail(error);
-	}).handleFloodErrors().send();
+	if (getData()->phoneHash.isEmpty()) {
+		refreshChallengeAndSubmit(password);
+	} else {
+		submitWithChallenge(password);
+	}
 }
 
 rpl::producer<QString> PasswordLoginWidget::nextButtonText() const {
@@ -310,12 +354,13 @@ void PhoneWidget::submit() {
 	cancelNearestDcRequest();
 
 	// Check if such account is authorized already.
-	const auto phoneDigits = DigitsOnly(phone);
+	const auto phoneDigits = Tz::NormalizeLoginPhone(phone);
 	for (const auto &[index, existing] : Core::App().domain().accounts()) {
 		const auto raw = existing.get();
 		if (const auto session = raw->maybeSession()) {
 			if (raw->mtp().environment() == account().mtp().environment()
-				&& DigitsOnly(session->user()->phone()) == phoneDigits) {
+				&& Tz::NormalizeLoginPhone(session->user()->phone())
+					== phoneDigits) {
 				crl::on_main(raw, [=] {
 					Core::App().domain().activate(raw);
 				});
@@ -328,7 +373,7 @@ void PhoneWidget::submit() {
 
 	_checkRequestTimer.callEach(1000);
 
-	_sentPhone = phone;
+	_sentPhone = phoneDigits;
 	api().instance().setUserPhone(_sentPhone);
 	_sentRequest = api().request(MTPauth_SendCode(
 		MTP_string(_sentPhone),
@@ -368,7 +413,7 @@ void PhoneWidget::phoneSubmitDone(const MTPauth_SentCode &result) {
 	_sentRequest = 0;
 
 	result.match([&](const MTPDauth_sentCode &data) {
-		getData()->phone = DigitsOnly(_sentPhone);
+		getData()->phone = _sentPhone;
 		getData()->phoneHash = qba(data.vphone_code_hash());
 		goNext<PasswordLoginWidget>();
 	}, [&](const MTPDauth_sentCodeSuccess &data) {

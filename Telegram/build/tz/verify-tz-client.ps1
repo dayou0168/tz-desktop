@@ -100,26 +100,78 @@ Assert-Contains 'Telegram\SourceFiles\mtproto\mtproto_config.h' 'https://tg.tian
 
 Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppName = "TZ"_cs'
 Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppFile = "TZ"_cs'
-Assert-Contains 'Telegram\build\version' 'AppVersion         1000002'
-Assert-Contains 'Telegram\build\version' 'AppVersionStr      1.0.2'
-Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppVersion = 1000002'
-Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppVersionStr = "1.0.2"'
-Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'kVersion = u"1.0.2"'
-Assert-Contains 'Telegram\Resources\winrc\Telegram.rc' 'FILEVERSION 1,0,2,0'
-Assert-Contains 'Telegram\Resources\winrc\Telegram.rc' 'VALUE "FileVersion", "1.0.2.0"'
-Assert-Contains 'Telegram\Resources\winrc\Updater.rc' 'FILEVERSION 1,0,2,0'
-Assert-Contains 'Telegram\Resources\winrc\Updater.rc' 'VALUE "FileVersion", "1.0.2.0"'
-Assert-Contains 'Telegram\Resources\uwp\AppX\AppxManifest.xml' 'Version="1.0.2.0"'
-Assert-Contains '.github\workflows\tz-windows-release.yml' "TZ_VERSION: '1.0.2'"
-Assert-Contains '.github\workflows\tz-windows-release.yml' 'name: TZ-1.0.2-windows-x64-build'
-Assert-Contains '.github\workflows\tz-windows-release.yml' 'artifacts/release/TZ-1.0.2-Setup.exe'
-Assert-Contains '.github\workflows\tz-windows-release.yml' 'artifacts/release/TZ-1.0.2-windows-x64.zip'
-Assert-Contains '.github\workflows\tz-windows-release.yml' 'artifacts/release/TZ-1.0.2-symbols.zip'
+Assert-Contains 'Telegram\build\version' 'AppVersion         1000003'
+Assert-Contains 'Telegram\build\version' 'AppVersionStrSmall 1.0.3'
+Assert-Contains 'Telegram\build\version' 'AppVersionStr      1.0.3'
+Assert-Contains 'Telegram\build\version' 'AppVersionOriginal 1.0.3'
+Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppVersion = 1000003'
+Assert-Contains 'Telegram\SourceFiles\core\version.h' 'AppVersionStr = "1.0.3"'
+Assert-Contains 'Telegram\SourceFiles\tz\tz_client_contract.h' 'kVersion = u"1.0.3"'
+Assert-Contains 'Telegram\SourceFiles\tests\tz_client_contract_tests.cpp' 'QStringView(u"1.0.3")'
+Assert-Contains 'Telegram\Resources\winrc\Telegram.rc' 'FILEVERSION 1,0,3,0'
+Assert-Contains 'Telegram\Resources\winrc\Telegram.rc' 'PRODUCTVERSION 1,0,3,0'
+Assert-Contains 'Telegram\Resources\winrc\Telegram.rc' 'VALUE "FileVersion", "1.0.3.0"'
+Assert-Contains 'Telegram\Resources\winrc\Telegram.rc' 'VALUE "ProductVersion", "1.0.3.0"'
+Assert-Contains 'Telegram\Resources\winrc\Updater.rc' 'FILEVERSION 1,0,3,0'
+Assert-Contains 'Telegram\Resources\winrc\Updater.rc' 'PRODUCTVERSION 1,0,3,0'
+Assert-Contains 'Telegram\Resources\winrc\Updater.rc' 'VALUE "FileVersion", "1.0.3.0"'
+Assert-Contains 'Telegram\Resources\winrc\Updater.rc' 'VALUE "ProductVersion", "1.0.3.0"'
+Assert-Contains 'Telegram\Resources\uwp\AppX\AppxManifest.xml' 'Version="1.0.3.0"'
+Assert-Contains '.github\workflows\tz-windows-release.yml' "TZ_VERSION: '1.0.3'"
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'name: TZ-1.0.3-windows-x64-build'
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'artifacts/release/TZ-1.0.3-Setup.exe'
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'artifacts/release/TZ-1.0.3-windows-x64.zip'
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'artifacts/release/TZ-1.0.3-symbols.zip'
 Assert-Contains '.github\workflows\tz-windows-release.yml' '"TZ-$env:TZ_VERSION-Setup.exe",'
 Assert-Contains '.github\workflows\tz-windows-release.yml' '"TZ-$env:TZ_VERSION-windows-x64.zip",'
 Assert-Contains '.github\workflows\tz-windows-release.yml' '"TZ-$env:TZ_VERSION-symbols.zip"'
 Assert-Contains '.github\workflows\tz-windows-release.yml' "(Join-Path `$artifacts 'SHA256SUMS.txt')"
-Assert-NotContains '.github\workflows\tz-windows-release.yml' '1.0.1'
+Assert-Contains 'Telegram\build\setup.iss' 'OutputBaseFilename=TZ-{#MyAppVersionFull}-Setup'
+foreach ($versionedPath in @(
+    'Telegram\build\version',
+    'Telegram\SourceFiles\core\version.h',
+    'Telegram\SourceFiles\tz\tz_client_contract.h',
+    'Telegram\SourceFiles\tests\tz_client_contract_tests.cpp',
+    'Telegram\Resources\winrc\Telegram.rc',
+    'Telegram\Resources\winrc\Updater.rc',
+    'Telegram\Resources\uwp\AppX\AppxManifest.xml',
+    '.github\workflows\tz-windows-release.yml'
+)) {
+    Assert-NotContains $versionedPath '1.0.2'
+    Assert-NotContains $versionedPath '1000002'
+    Assert-NotContains $versionedPath '1,0,2,0'
+}
+Assert-Contains '.github\workflows\tz-windows-release.yml' '-D DESKTOP_APP_ENABLE_LTO=ON ^'
+Assert-NotContains '.github\workflows\tz-windows-release.yml' 'DESKTOP_APP_ENABLE_LTO=OFF'
+$workflowContent = Read-RepositoryFile '.github\workflows\tz-windows-release.yml'
+$ltoOnCacheToken = 'Release-lto-on'
+$ltoOnCacheCount = ([regex]::Matches(
+    $workflowContent,
+    [regex]::Escape($ltoOnCacheToken))).Count
+if ($ltoOnCacheCount -ne 5) {
+    throw "Windows Release workflow contains $ltoOnCacheCount LTO-on cache tokens; expected 5."
+}
+Assert-NotContains '.github\workflows\tz-windows-release.yml' 'Release-lto-off'
+Assert-Contains '.github\workflows\tz-windows-release.yml' '$expectedPrefix = "tz-compile-windows-x64-branch-$env:TZ_BRANCH-msvc-$env:TZ_MSVC_TOOLSET-Release-lto-on-"'
+Assert-Contains 'cmake\options_win.cmake' '$<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${DESKTOP_APP_ENABLE_LTO}>>:/GL>'
+Assert-Contains 'cmake\options_win.cmake' '$<$<AND:$<NOT:$<CONFIG:Debug>>,$<BOOL:${DESKTOP_APP_ENABLE_LTO}>>:/LTCG>'
+Assert-Contains 'cmake\init_target.cmake' 'if (DESKTOP_APP_SPECIAL_TARGET AND DESKTOP_APP_ENABLE_LTO)'
+Assert-Contains 'cmake\init_target.cmake' 'STATIC_LIBRARY_OPTIONS "$<$<NOT:$<CONFIG:Debug>>:/LTCG>"'
+$rootCmakePath = 'CMakeLists.txt'
+Assert-Matches $rootCmakePath 'add_subdirectory\(cmake\)\s+# cmark-gfm creates these product libraries without init_target\(\)[\s\S]*?if \(MSVC AND DESKTOP_APP_SPECIAL_TARGET AND DESKTOP_APP_ENABLE_LTO\)[\s\S]*?endforeach\(\)\s+endif\(\)\s+add_subdirectory\(Telegram\)'
+Assert-Contains $rootCmakePath 'foreach (target libcmark-gfm_static libcmark-gfm-extensions_static)'
+Assert-Matches $rootCmakePath 'target_compile_options\(\$\{target\}\s+PRIVATE\s+\$<\$<NOT:\$<CONFIG:Debug>>:/GL>\s+\)'
+Assert-Matches $rootCmakePath 'set_property\(TARGET \$\{target\} APPEND_STRING\s+PROPERTY STATIC_LIBRARY_OPTIONS\s+"\$<\$<NOT:\$<CONFIG:Debug>>:/LTCG>"\)'
+Assert-Contains '.github\workflows\tz-windows-release.yml' 'contents: read'
+Assert-NotContains '.github\workflows\tz-windows-release.yml' 'softprops/action-gh-release'
+Assert-Contains 'README.md' '# TZ Desktop 1.0.3'
+Assert-Contains 'README.md' '当前公开版本为 [TZ 1.0.2 LTO]'
+Assert-Contains 'docs\releases\1.0.3.zh-CN.md' '# TZ 1.0.3 LTO'
+Assert-Contains 'docs\releases\1.0.3.zh-CN.md' '本文件是未来 GitHub Release 的中文说明草稿'
+Assert-Contains 'docs\releases\1.0.3.zh-CN.md' '`TZ-1.0.3-Setup.exe`'
+Assert-Contains 'docs\releases\1.0.3.zh-CN.md' '`TZ-1.0.3-windows-x64.zip`'
+Assert-Contains 'docs\releases\1.0.3.zh-CN.md' '`TZ-1.0.3-symbols.zip`'
+Assert-Contains 'docs\releases\1.0.3.zh-CN.md' '`SHA256SUMS.txt`'
 Assert-Contains 'Telegram\cmake\tz_client_tests.cmake' 'group_creation_contract_tests'
 Assert-Contains 'Telegram\cmake\tz_client_tests.cmake' 'mtproto_dc_options_contract_tests'
 Assert-Contains 'Telegram\cmake\tz_client_tests.cmake' 'send_as_policy_contract_tests'
@@ -171,6 +223,15 @@ Assert-Contains $dcOptionsPath 'const auto flags = Flag::f_static | Flag::f_tcpo
 Assert-Contains $dcOptionsPath 'applyOneGuarded(entry.id, flags, entry.ip, entry.port, {});'
 Assert-Contains $dcOptionsPath 'NormalizeTzMainDcOptions(data);'
 Assert-Contains $dcOptionsPath 'NormalizeTzMainDcOptions(_data);'
+
+$forbiddenLegacyIp = '47.79.233.204'
+$productSourceRoot = Join-Path $RepositoryRoot 'Telegram\SourceFiles'
+$legacyIpMatches = Get-ChildItem -LiteralPath $productSourceRoot -Recurse -File -Include '*.c', '*.cc', '*.cpp', '*.h', '*.m', '*.mm' |
+    Where-Object { $_.FullName -notmatch '[\\/]tests[\\/]' } |
+    Select-String -SimpleMatch $forbiddenLegacyIp
+if ($legacyIpMatches) {
+    throw "Product source contains forbidden legacy IP: $forbiddenLegacyIp"
+}
 
 Assert-Matches 'Telegram\SourceFiles\mtproto\session_private.cpp' 'appendTestConnection\(\s*static_cast<Variants::Protocol>\(protocol\),\s*QString::fromStdString\(endpoint\.ip\),\s*endpoint\.port,\s*endpoint\.secret\);'
 Assert-Matches 'Telegram\SourceFiles\mtproto\session_private.cpp' 'weak->connectToServer\(\s*ip,\s*port,'

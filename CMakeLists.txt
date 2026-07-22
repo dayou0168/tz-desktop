@@ -71,4 +71,20 @@ set(desktop_app_skip_libs
 )
 
 add_subdirectory(cmake)
+
+# cmark-gfm creates these product libraries without init_target(), so apply
+# the same MSVC LTO options after the external targets exist. Keep this scoped
+# to the two libraries linked into TZ.exe; cmark tools and tests are untouched.
+if (MSVC AND DESKTOP_APP_SPECIAL_TARGET AND DESKTOP_APP_ENABLE_LTO)
+    foreach (target libcmark-gfm_static libcmark-gfm-extensions_static)
+        target_compile_options(${target}
+        PRIVATE
+            $<$<NOT:$<CONFIG:Debug>>:/GL>
+        )
+        set_property(TARGET ${target} APPEND_STRING
+            PROPERTY STATIC_LIBRARY_OPTIONS
+            "$<$<NOT:$<CONFIG:Debug>>:/LTCG>")
+    endforeach()
+endif()
+
 add_subdirectory(Telegram)

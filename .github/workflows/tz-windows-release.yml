@@ -26,7 +26,7 @@ jobs:
 
     env:
       BUILD_ROOT: '${{ github.workspace }}\build-root'
-      TZ_VERSION: '1.0.2'
+      TZ_VERSION: '1.0.3'
 
     steps:
       - name: Checkout source and submodules
@@ -115,10 +115,10 @@ jobs:
             ${{ env.BUILD_ROOT }}/tdesktop/out/**/*_autogen
             ${{ env.BUILD_ROOT }}/tdesktop/out/**/gen
             ${{ env.BUILD_ROOT }}/tdesktop/out/**/shaders
-          key: tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-off-sha-${{ github.sha }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          key: tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-on-sha-${{ github.sha }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
           restore-keys: |
-            tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-off-sha-${{ github.sha }}-
-            tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-off-
+            tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-on-sha-${{ github.sha }}-
+            tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-on-
 
       - name: Prepare restored compile checkpoint
         shell: pwsh
@@ -196,7 +196,7 @@ jobs:
             exit 0
           }
 
-          $expectedPrefix = "tz-compile-windows-x64-branch-$env:TZ_BRANCH-msvc-$env:TZ_MSVC_TOOLSET-Release-lto-off-"
+          $expectedPrefix = "tz-compile-windows-x64-branch-$env:TZ_BRANCH-msvc-$env:TZ_MSVC_TOOLSET-Release-lto-on-"
           $sourceMatch = [regex]::Match($matchedKey, '-sha-(?<sha>[0-9a-fA-F]{40})-run-\d+-attempt-\d+$')
           if (-not $matchedKey.StartsWith($expectedPrefix, [System.StringComparison]::Ordinal) -or -not $sourceMatch.Success) {
             Remove-CompileCheckpoint 'the restored cache key had an unexpected or unparseable source'
@@ -313,7 +313,7 @@ jobs:
             -D TDESKTOP_API_TEST=ON ^
             -D CMAKE_CONFIGURATION_TYPES=Release ^
             -D DESKTOP_APP_SPECIAL_TARGET=win64 ^
-            -D DESKTOP_APP_ENABLE_LTO=OFF ^
+            -D DESKTOP_APP_ENABLE_LTO=ON ^
             -D DESKTOP_APP_DISABLE_AUTOUPDATE=ON ^
             -D DESKTOP_APP_DISABLE_CRASH_REPORTS=ON
           if errorlevel 1 exit /b 1
@@ -477,7 +477,7 @@ jobs:
             ${{ env.BUILD_ROOT }}/tdesktop/out/**/*_autogen
             ${{ env.BUILD_ROOT }}/tdesktop/out/**/gen
             ${{ env.BUILD_ROOT }}/tdesktop/out/**/shaders
-          key: tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-off-sha-${{ github.sha }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
+          key: tz-compile-windows-x64-branch-${{ github.ref_name }}-msvc-${{ env.TZ_MSVC_TOOLSET }}-Release-lto-on-sha-${{ github.sha }}-run-${{ github.run_id }}-attempt-${{ github.run_attempt }}
 
       - name: Enforce build result
         if: ${{ always() && steps.configure.outcome == 'success' }}
@@ -520,7 +520,7 @@ jobs:
         if: ${{ steps.build.outputs.exit_code == '0' }}
         uses: actions/upload-artifact@v4
         with:
-          name: TZ-1.0.2-windows-x64-build
+          name: TZ-1.0.3-windows-x64-build
           path: artifacts/intermediate
           if-no-files-found: error
           compression-level: 0
@@ -534,7 +534,7 @@ jobs:
     timeout-minutes: 60
 
     env:
-      TZ_VERSION: '1.0.2'
+      TZ_VERSION: '1.0.3'
 
     steps:
       - name: Checkout installer sources
@@ -553,7 +553,7 @@ jobs:
       - name: Download reusable Windows build outputs
         uses: actions/download-artifact@v4
         with:
-          name: TZ-1.0.2-windows-x64-build
+          name: TZ-1.0.3-windows-x64-build
           path: artifacts/intermediate
 
       - name: Build installer and archives
@@ -642,11 +642,11 @@ jobs:
       - name: Upload Windows Release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TZ-1.0.2-windows-x64
+          name: TZ-1.0.3-windows-x64
           path: |
-            artifacts/release/TZ-1.0.2-Setup.exe
-            artifacts/release/TZ-1.0.2-windows-x64.zip
-            artifacts/release/TZ-1.0.2-symbols.zip
+            artifacts/release/TZ-1.0.3-Setup.exe
+            artifacts/release/TZ-1.0.3-windows-x64.zip
+            artifacts/release/TZ-1.0.3-symbols.zip
             artifacts/release/SHA256SUMS.txt
           if-no-files-found: error
           compression-level: 0

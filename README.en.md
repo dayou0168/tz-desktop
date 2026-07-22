@@ -2,9 +2,11 @@
 
 > TZ Desktop is a derivative of Telegram Desktop, not an official Telegram client. The upstream section preserved below describes Telegram Desktop and does not imply Telegram endorsement or completed TZ validation.
 
-# TZ Desktop 1.0.2
+# TZ Desktop 1.0.3
 
 TZ Desktop is the Windows client for the Tianze private messaging service.
+
+The source tree is being prepared for the future TZ 1.0.3 LTO release. It has not yet been built, packaged, validated on Windows, or published; the current public release remains 1.0.2.
 
 - Server and Admin source: https://github.com/dayou0168/tz-server
 - Windows Release workflow and assets: https://github.com/dayou0168/tz-desktop/releases

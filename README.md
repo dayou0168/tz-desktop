@@ -1,111 +1,34 @@
 # TZ Desktop 1.0.2
 
-TZ Desktop is the Windows client for the Tianze private messaging service.
+**简体中文** | [English](README.en.md)
 
-- Server and Admin source: https://github.com/dayou0168/tz-server
-- Windows Release workflow and assets: https://github.com/dayou0168/tz-desktop/releases
-- Upstream project: https://github.com/telegramdesktop/tdesktop
+TZ Desktop 是 **TZ / 天泽集团** 品牌的 Windows x64 私有即时通信客户端。本仓库基于上游 Telegram Desktop 定制，客户端相关的服务端与管理端源码见 [tz-server](https://github.com/dayou0168/tz-server)（访问权限以该仓库设置为准）。
 
-The distributable Windows package is built as Release x64. Debug binaries, PDB files, source files, object files, build logs, test harnesses, and the upstream Telegram updater are not included in the installer. PDB files are retained only as a separate development artifact.
+## Windows x64 下载
 
----
+当前公开版本为 [TZ 1.0.2 LTO](https://github.com/dayou0168/tz-desktop/releases/tag/1.0.2)：
 
-# [Telegram Desktop][telegram_desktop] – Official Messenger
+| 文件 | 用途 |
+| --- | --- |
+| [TZ-1.0.2-Setup.exe](https://github.com/dayou0168/tz-desktop/releases/download/1.0.2/TZ-1.0.2-Setup.exe) | Windows 安装程序，用于安装 TZ Desktop。 |
+| [TZ-1.0.2-windows-x64.zip](https://github.com/dayou0168/tz-desktop/releases/download/1.0.2/TZ-1.0.2-windows-x64.zip) | 便携包；解压后直接运行其中的 `TZ.exe`，无需安装。 |
+| [TZ-1.0.2-symbols.zip](https://github.com/dayou0168/tz-desktop/releases/download/1.0.2/TZ-1.0.2-symbols.zip) | 调试符号，供开发和故障分析使用；普通运行不需要。 |
+| [SHA256SUMS.txt](https://github.com/dayou0168/tz-desktop/releases/download/1.0.2/SHA256SUMS.txt) | 上述三个发布文件的 SHA-256 校验值，用于核对下载完整性。 |
 
-This is the complete source code and the build instructions for the official [Telegram][telegram] messenger desktop client, based on the [Telegram API][telegram_api] and the [MTProto][telegram_proto] secure protocol.
+下载后建议先用 `SHA256SUMS.txt` 核对文件。Setup 和便携包是两种运行方式，不需要同时下载；symbols 不是应用运行组件。
 
-[![Version](https://badge.fury.io/gh/telegramdesktop%2Ftdesktop.svg)](https://github.com/telegramdesktop/tdesktop/releases)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/Windows./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/MacOS./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-[![Build Status](https://github.com/telegramdesktop/tdesktop/workflows/Linux./badge.svg)](https://github.com/telegramdesktop/tdesktop/actions)
-[![Built with Depot](https://img.shields.io/badge/Built%20with-Depot.dev-46A75A)](https://depot.dev)
+## 当前状态与安全提示
 
-[![Preview of Telegram Desktop][preview_image]][preview_image_url]
+- 截至 2026-07-22，当前 Release 中的 `TZ-1.0.2-Setup.exe` 和便携包内 `TZ.exe` **均未进行 Authenticode 数字签名**。Windows 可能显示未知发布者或安全提示；请确认下载地址来自本仓库，并在决定运行前核对 SHA-256。
+- 1.0.2 LTO 的发布文件已经公开，但安装、启动与运行、Windows 双客户端交互以及端到端（E2E）场景尚未完成验收。本仓库不宣称这些项目已经通过。
+- Release、源码存在或校验值一致只能证明对应文件与版本可追溯，不能替代实际环境中的功能和安全验收。
 
-The source code is published under GPLv3 with OpenSSL exception, the license is available [here][license].
+## 从源码构建
 
-## Supported systems
+Windows 源码构建请从仓库现有的 [Windows 构建文档](docs/building-win.md) 开始，并使用其引用的 [`Telegram/build/prepare/win.bat`](Telegram/build/prepare/win.bat) 准备依赖。构建环境、依赖布局和命令以该文档及脚本的当前内容为准。
 
-The latest version is available for
+## 上游、许可证与第三方组件
 
-* [Windows 7 and above (64 bit)](https://telegram.org/dl/desktop/win64) ([portable](https://telegram.org/dl/desktop/win64_portable))
-* [Windows 7 and above (32 bit)](https://telegram.org/dl/desktop/win) ([portable](https://telegram.org/dl/desktop/win_portable))
-* [macOS 10.13 and above](https://telegram.org/dl/desktop/mac)
-* [Linux static build for 64 bit](https://telegram.org/dl/desktop/linux)
-* [Snap](https://snapcraft.io/telegram-desktop)
-* [Flatpak](https://flathub.org/apps/details/org.telegram.desktop)
+TZ Desktop 是基于 [Telegram Desktop](https://github.com/telegramdesktop/tdesktop) 的衍生项目。Telegram Desktop 及其原始代码归相应上游作者和贡献者所有；本项目不是 Telegram 官方客户端，也不应被理解为由 Telegram 官方发布或背书。
 
-## Old system versions
-
-Version **4.9.9** was the last that supports older systems
-
-* [macOS 10.12](https://updates.tdesktop.com/tmac/tsetup.4.9.9.dmg)
-* [Linux with glibc < 2.28 static build](https://updates.tdesktop.com/tlinux/tsetup.4.9.9.tar.xz)
-
-Version **2.4.4** was the last that supports older systems
-
-* [OS X 10.10 and 10.11](https://updates.tdesktop.com/tosx/tsetup-osx.2.4.4.dmg)
-* [Linux static build for 32 bit](https://updates.tdesktop.com/tlinux32/tsetup32.2.4.4.tar.xz)
-
-Version **1.8.15** was the last that supports older systems
-
-* [Windows XP and Vista](https://updates.tdesktop.com/tsetup/tsetup.1.8.15.exe) ([portable](https://updates.tdesktop.com/tsetup/tportable.1.8.15.zip))
-* [OS X 10.8 and 10.9](https://updates.tdesktop.com/tmac/tsetup.1.8.15.dmg)
-* [OS X 10.6 and 10.7](https://updates.tdesktop.com/tmac32/tsetup32.1.8.15.dmg)
-
-## Third-party
-
-* Qt 6 ([LGPL](http://doc.qt.io/qt-6/lgpl.html)) and Qt 5.15 ([LGPL](http://doc.qt.io/qt-5/lgpl.html)) slightly patched
-* OpenSSL 3.2.1 ([Apache License 2.0](https://www.openssl.org/source/apache-license-2.0.txt))
-* WebRTC ([New BSD License](https://github.com/desktop-app/tg_owt/blob/master/LICENSE))
-* zlib ([zlib License](http://www.zlib.net/zlib_license.html))
-* LZMA SDK 9.20 ([public domain](http://www.7-zip.org/sdk.html))
-* liblzma ([public domain](http://tukaani.org/xz/))
-* Google Breakpad ([License](https://chromium.googlesource.com/breakpad/breakpad/+/master/LICENSE))
-* Google Crashpad ([Apache License 2.0](https://chromium.googlesource.com/crashpad/crashpad/+/master/LICENSE))
-* GYP ([BSD License](https://github.com/bnoordhuis/gyp/blob/master/LICENSE))
-* Ninja ([Apache License 2.0](https://github.com/ninja-build/ninja/blob/master/COPYING))
-* OpenAL Soft ([LGPL](https://github.com/kcat/openal-soft/blob/master/COPYING))
-* Opus codec ([BSD License](http://www.opus-codec.org/license/))
-* FFmpeg ([LGPL](https://www.ffmpeg.org/legal.html))
-* Guideline Support Library ([MIT License](https://github.com/Microsoft/GSL/blob/master/LICENSE))
-* Range-v3 ([Boost License](https://github.com/ericniebler/range-v3/blob/master/LICENSE.txt))
-* Open Sans font ([Apache License 2.0](http://www.apache.org/licenses/LICENSE-2.0.html))
-* Vazirmatn font ([SIL Open Font License 1.1](https://github.com/rastikerdar/vazirmatn/blob/master/OFL.txt))
-* Emoji alpha codes ([MIT License](https://github.com/emojione/emojione/blob/master/extras/alpha-codes/LICENSE.md))
-* xxHash ([BSD License](https://github.com/Cyan4973/xxHash/blob/dev/LICENSE))
-* QR Code generator ([MIT License](https://github.com/nayuki/QR-Code-generator#license))
-* CMake ([New BSD License](https://github.com/Kitware/CMake/blob/master/Copyright.txt))
-* Hunspell ([LGPL](https://github.com/hunspell/hunspell/blob/master/COPYING.LESSER))
-* Ada ([Apache License 2.0](https://github.com/ada-url/ada/blob/main/LICENSE-APACHE))
-
-## Build instructions
-
-* [Windows (32-bit and 64-bit)][win]
-* [macOS][mac]
-* [GNU/Linux using Docker][linux]
-
-[//]: # (LINKS)
-[telegram]: https://telegram.org
-[telegram_desktop]: https://desktop.telegram.org
-[telegram_api]: https://core.telegram.org
-[telegram_proto]: https://core.telegram.org/mtproto
-[license]: LICENSE
-[win]: docs/building-win.md
-[mac]: docs/building-mac.md
-[linux]: docs/building-linux.md
-[preview_image]: https://github.com/telegramdesktop/tdesktop/blob/dev/docs/assets/preview.png "Preview of Telegram Desktop"
-[preview_image_url]: https://raw.githubusercontent.com/telegramdesktop/tdesktop/dev/docs/assets/preview.png
-
-## Thanks to
-
-<a href="https://depot.dev">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://depot.dev/assets/brand/1693758816/depot-logo-horizontal-on-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://depot.dev/assets/brand/1693758816/depot-logo-horizontal-on-light.svg">
-    <img alt="Depot" src="https://depot.dev/assets/brand/1693758816/depot-logo-horizontal-on-light.svg" width="150">
-  </picture>
-</a>
-
-CI infrastructure sponsored by [Depot](https://depot.dev) — fast GitHub Actions runners.
-
+本仓库代码按照 [GNU GPL v3（含 OpenSSL 链接例外）](LICENSE) 提供。第三方组件仍分别适用其各自许可证和声明；可参阅英文页保留的[第三方组件列表](README.en.md#third-party)、[`LEGAL`](LEGAL) 以及 [`Telegram/ThirdParty`](Telegram/ThirdParty) 中随源码提供的许可文件。

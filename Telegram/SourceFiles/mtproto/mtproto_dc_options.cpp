@@ -19,6 +19,9 @@ namespace MTP {
 namespace {
 
 constexpr auto kVersion = 2;
+constexpr auto kTzMainDcId = 2;
+constexpr auto kTzMainDcAddress = "tztg.tianze8.cc";
+constexpr auto kTzMainDcPort = 2398;
 
 using namespace details;
 
@@ -29,12 +32,36 @@ struct BuiltInDc {
 };
 
 const BuiltInDc kBuiltInDcs[] = {
-	{ 2, "47.79.233.204", 2398 },
+	{ kTzMainDcId, kTzMainDcAddress, kTzMainDcPort },
 };
 
 const BuiltInDc kBuiltInDcsTest[] = {
-	{ 2, "47.79.233.204", 2398 },
+	{ kTzMainDcId, kTzMainDcAddress, kTzMainDcPort },
 };
+
+void NormalizeTzMainDcOptions(
+		base::flat_map<DcId, std::vector<DcOptions::Endpoint>> &data) {
+	auto normalized = std::vector<DcOptions::Endpoint>();
+	const auto i = data.find(kTzMainDcId);
+	if (i != end(data)) {
+		normalized.reserve(i->second.size() + 1);
+	}
+	normalized.emplace_back(
+		kTzMainDcId,
+		DcOptions::Flag::f_static | DcOptions::Flag::f_tcpo_only,
+		kTzMainDcAddress,
+		kTzMainDcPort,
+		bytes::vector());
+	if (i != end(data)) {
+		for (auto &endpoint : i->second) {
+			if ((endpoint.flags & DcOptions::Flag::f_cdn)
+				|| (endpoint.flags & DcOptions::Flag::f_media_only)) {
+				normalized.push_back(std::move(endpoint));
+			}
+		}
+	}
+	data[kTzMainDcId] = std::move(normalized);
+}
 
 const char *kTestPublicRSAKeys[] = { "\
 -----BEGIN RSA PUBLIC KEY-----\n\
@@ -202,6 +229,7 @@ void DcOptions::processFromList(
 		auto secret = bytes::make_vector(option.vsecret().value_or_empty());
 		ApplyOneOption(data, dcId, flags, ip, port, secret);
 	}
+	NormalizeTzMainDcOptions(data);
 
 	const auto difference = [&] {
 		WriteLocker lock(this);
@@ -286,7 +314,9 @@ bool DcOptions::applyOneGuarded(
 		const std::string &ip,
 		int port,
 		const bytes::vector &secret) {
-	return ApplyOneOption(_data, dcId, flags, ip, port, secret);
+	const auto result = ApplyOneOption(_data, dcId, flags, ip, port, secret);
+	NormalizeTzMainDcOptions(_data);
+	return result;
 }
 
 bool DcOptions::ApplyOneOption(
@@ -652,6 +682,10 @@ auto DcOptions::lookup(
 	for (const auto &endpoint : i->second) {
 		const auto flags = endpoint.flags;
 		if (type == DcType::Cdn && !(flags & Flag::f_cdn)) {
+			continue;
+		} else if (dcId == kTzMainDcId
+			&& type == DcType::Regular
+			&& (flags & Flag::f_cdn)) {
 			continue;
 		} else if (type != DcType::MediaCluster
 			&& (flags & Flag::f_media_only)) {

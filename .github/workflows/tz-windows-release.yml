@@ -358,6 +358,7 @@ jobs:
           foreach ($test in @(
             'tz_client_contract_tests',
             'group_creation_contract_tests',
+            'mtproto_dc_options_contract_tests',
             'send_as_policy_contract_tests',
             'tz_internal_url_contract_tests'
           )) {

@@ -30,6 +30,16 @@ function Assert-NotContains(
     }
 }
 
+function Assert-Matches(
+    [string]$RelativePath,
+    [string]$Pattern
+) {
+    $content = Read-RepositoryFile $RelativePath
+    if (-not [regex]::IsMatch($content, $Pattern)) {
+        throw "$RelativePath does not match expected pattern: $Pattern"
+    }
+}
+
 Assert-Contains 'Telegram\SourceFiles\intro\intro_signup.cpp' 'Tz::SignupNamesAccepted(firstName, lastName)'
 Assert-Contains 'Telegram\SourceFiles\intro\intro_phone.cpp' 'goNext<PasswordLoginWidget>()'
 Assert-NotContains 'Telegram\SourceFiles\intro\intro_phone.cpp' 'goNext<CodeWidget>()'
@@ -111,9 +121,11 @@ Assert-Contains '.github\workflows\tz-windows-release.yml' '"TZ-$env:TZ_VERSION-
 Assert-Contains '.github\workflows\tz-windows-release.yml' "(Join-Path `$artifacts 'SHA256SUMS.txt')"
 Assert-NotContains '.github\workflows\tz-windows-release.yml' '1.0.1'
 Assert-Contains 'Telegram\cmake\tz_client_tests.cmake' 'group_creation_contract_tests'
+Assert-Contains 'Telegram\cmake\tz_client_tests.cmake' 'mtproto_dc_options_contract_tests'
 Assert-Contains 'Telegram\cmake\tz_client_tests.cmake' 'send_as_policy_contract_tests'
 Assert-Contains 'Telegram\cmake\tz_client_tests.cmake' 'tz_internal_url_contract_tests'
 Assert-Contains '.github\workflows\tz-windows-release.yml' '--target tz_contract_tests'
+Assert-Contains '.github\workflows\tz-windows-release.yml' "'mtproto_dc_options_contract_tests'"
 Assert-Contains '.github\workflows\tz-windows-release.yml' "'tz_internal_url_contract_tests'"
 Assert-Contains '.github\workflows\tz-windows-release.yml' "local-name()='MultiProcessorCompilation'"
 Assert-Contains '.github\workflows\tz-windows-release.yml' "`$node.InnerText = 'false'"
@@ -147,8 +159,24 @@ Assert-Contains 'Telegram\SourceFiles\payments\ui\payments_panel.cpp' 'TelegramW
 Assert-Contains 'Telegram\SourceFiles\lang\lang_instance.cpp' '"tdesktop"_cs'
 Assert-Contains 'Telegram\SourceFiles\core\crash_report_window.cpp' '.telegramcrash'
 
-Assert-Contains 'Telegram\SourceFiles\mtproto\mtproto_dc_options.cpp' '{ 2, "47.79.233.204", 2398 }'
-Assert-NotContains 'Telegram\SourceFiles\mtproto\mtproto_dc_options.cpp' '149.154.'
-Assert-NotContains 'Telegram\SourceFiles\mtproto\mtproto_dc_options.cpp' '95.161.76.100'
+$dcOptionsPath = 'Telegram\SourceFiles\mtproto\mtproto_dc_options.cpp'
+Assert-Contains $dcOptionsPath 'constexpr auto kTzMainDcAddress = "tztg.tianze8.cc";'
+Assert-Contains $dcOptionsPath 'constexpr auto kTzMainDcPort = 2398;'
+Assert-Matches $dcOptionsPath 'const BuiltInDc kBuiltInDcs\[\]\s*=\s*\{\s*\{\s*kTzMainDcId,\s*kTzMainDcAddress,\s*kTzMainDcPort\s*\},\s*\};'
+Assert-Matches $dcOptionsPath 'const BuiltInDc kBuiltInDcsTest\[\]\s*=\s*\{\s*\{\s*kTzMainDcId,\s*kTzMainDcAddress,\s*kTzMainDcPort\s*\},\s*\};'
+Assert-NotContains $dcOptionsPath '47.79.233.204'
+Assert-NotContains $dcOptionsPath '149.154.'
+Assert-NotContains $dcOptionsPath '95.161.76.100'
+Assert-Contains $dcOptionsPath 'const auto flags = Flag::f_static | Flag::f_tcpo_only;'
+Assert-Contains $dcOptionsPath 'applyOneGuarded(entry.id, flags, entry.ip, entry.port, {});'
+Assert-Contains $dcOptionsPath 'NormalizeTzMainDcOptions(data);'
+Assert-Contains $dcOptionsPath 'NormalizeTzMainDcOptions(_data);'
+
+Assert-Matches 'Telegram\SourceFiles\mtproto\session_private.cpp' 'appendTestConnection\(\s*static_cast<Variants::Protocol>\(protocol\),\s*QString::fromStdString\(endpoint\.ip\),\s*endpoint\.port,\s*endpoint\.secret\);'
+Assert-Matches 'Telegram\SourceFiles\mtproto\session_private.cpp' 'weak->connectToServer\(\s*ip,\s*port,'
+Assert-Matches 'Telegram\SourceFiles\mtproto\connection_abstract.cpp' 'if\s*\(protocol == DcOptions::Variants::Tcp\)\s*\{\s*return ConnectionPointer::New<TcpConnection>\('
+Assert-Matches 'Telegram\SourceFiles\mtproto\connection_tcp.cpp' 'else\s*\{\s*_address = address;\s*_port = port;\s*_protocol = Protocol::Create\(secret\);\s*\}'
+Assert-Contains 'Telegram\SourceFiles\mtproto\connection_tcp.cpp' '_socket->connectToHost(_address, _port);'
+Assert-Contains 'Telegram\SourceFiles\mtproto\details\mtproto_tcp_socket.cpp' '_socket.connectToHost(address, port);'
 
 Write-Output 'TZ client focused source contract: PASS'

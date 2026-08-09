@@ -1,4 +1,4 @@
-# TZ Desktop 1.0.3
+# TZ Desktop 1.0.4
 
 **简体中文** | [English](README.en.md)
 
@@ -6,22 +6,22 @@ TZ Desktop 是 **TZ / 天泽集团** 品牌的 Windows x64 私有即时通信客
 
 ## Windows x64 下载
 
-当前公开版本为 [TZ 1.0.2 LTO](https://github.com/dayou0168/tz-desktop/releases/tag/1.0.2)：
+当前公开的 Windows 二进制版本为 [TZ 1.0.3 LTO](https://github.com/dayou0168/tz-desktop/releases/tag/1.0.3)：
 
 | 文件 | 用途 |
 | --- | --- |
-| [TZ-1.0.2-Setup.exe](https://github.com/dayou0168/tz-desktop/releases/download/1.0.2/TZ-1.0.2-Setup.exe) | Windows 安装程序，用于安装 TZ Desktop。 |
-| [TZ-1.0.2-windows-x64.zip](https://github.com/dayou0168/tz-desktop/releases/download/1.0.2/TZ-1.0.2-windows-x64.zip) | 便携包；解压后直接运行其中的 `TZ.exe`，无需安装。 |
-| [TZ-1.0.2-symbols.zip](https://github.com/dayou0168/tz-desktop/releases/download/1.0.2/TZ-1.0.2-symbols.zip) | 调试符号，供开发和故障分析使用；普通运行不需要。 |
-| [SHA256SUMS.txt](https://github.com/dayou0168/tz-desktop/releases/download/1.0.2/SHA256SUMS.txt) | 上述三个发布文件的 SHA-256 校验值，用于核对下载完整性。 |
+| [TZ-1.0.3-Setup.exe](https://github.com/dayou0168/tz-desktop/releases/download/1.0.3/TZ-1.0.3-Setup.exe) | Windows 安装程序，用于安装 TZ Desktop。 |
+| [TZ-1.0.3-windows-x64.zip](https://github.com/dayou0168/tz-desktop/releases/download/1.0.3/TZ-1.0.3-windows-x64.zip) | 便携包；解压后直接运行其中的 `TZ.exe`，无需安装。 |
+| [TZ-1.0.3-symbols.zip](https://github.com/dayou0168/tz-desktop/releases/download/1.0.3/TZ-1.0.3-symbols.zip) | 调试符号，供开发和故障分析使用；普通运行不需要。 |
+| [SHA256SUMS.txt](https://github.com/dayou0168/tz-desktop/releases/download/1.0.3/SHA256SUMS.txt) | 上述三个发布文件的 SHA-256 校验值，用于核对下载完整性。 |
 
 下载后建议先用 `SHA256SUMS.txt` 核对文件。Setup 和便携包是两种运行方式，不需要同时下载；symbols 不是应用运行组件。
 
 ## 当前状态与安全提示
 
-- 当前源码正在准备未来的 TZ 1.0.3 LTO；尚未执行正式 Release 构建、打包、Windows 实机验收或发布。上方下载区继续指向现有公开版 1.0.2。
-- 截至 2026-07-22，当前 Release 中的 `TZ-1.0.2-Setup.exe` 和便携包内 `TZ.exe` **均未进行 Authenticode 数字签名**。Windows 可能显示未知发布者或安全提示；请确认下载地址来自本仓库，并在决定运行前核对 SHA-256。
-- 1.0.2 LTO 的发布文件已经公开，但安装、启动与运行、Windows 双客户端交互以及端到端（E2E）场景尚未完成验收。本仓库不宣称这些项目已经通过。
+- 1.0.4 仅发布源码，不包含 Windows 二进制；LTO 安装包和便携包后续在高内存 Windows 电脑上单独编译。上方下载区继续指向现有公开二进制版 1.0.3。
+- 截至 2026-08-10，当前 Release 中的 `TZ-1.0.3-Setup.exe` 和便携包内 `TZ.exe` **均未进行 Authenticode 数字签名**。Windows 可能显示未知发布者或安全提示；请确认下载地址来自本仓库，并在决定运行前核对 SHA-256。
+- 1.0.3 LTO 的发布文件已经公开，但安装、启动与运行、Windows 双客户端交互以及端到端（E2E）场景仍需在实际环境中验收。
 - Release、源码存在或校验值一致只能证明对应文件与版本可追溯，不能替代实际环境中的功能和安全验收。
 
 ## 从源码构建

@@ -1,9 +1,6 @@
 name: TZ Windows Release
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
     inputs:
       runner:
@@ -26,7 +23,7 @@ jobs:
 
     env:
       BUILD_ROOT: '${{ github.workspace }}\build-root'
-      TZ_VERSION: '1.0.3'
+      TZ_VERSION: '1.0.4'
 
     steps:
       - name: Checkout source and submodules

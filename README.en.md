@@ -8,6 +8,8 @@ TZ Desktop is the Windows client for the Tianze private messaging service.
 
 The 1.0.5 source tree is published without Windows binaries. Its LTO binaries will be built separately on a high-memory Windows machine. The current public Windows binary release remains [TZ 1.0.3 LTO](https://github.com/dayou0168/tz-desktop/releases/tag/1.0.3). Version 1.0.5 adds a dedicated TZ login-password change action under Privacy and Security; it remains separate from Telegram-style two-step verification.
 
+For the high-memory Windows build, follow the authoritative [TZ Desktop 1.0.5 Codex LTO handoff](docs/TZ_WINDOWS_1.0.5_LTO_CODEX.zh-CN.md). It includes a ready-to-paste Codex prompt, the locked build boundary, packaging steps, and acceptance checks.
+
 - Server and Admin source: https://github.com/dayou0168/tz-server
 - Windows Release workflow and assets: https://github.com/dayou0168/tz-desktop/releases
 - Upstream project: https://github.com/telegramdesktop/tdesktop

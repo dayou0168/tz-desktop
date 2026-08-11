@@ -27,7 +27,9 @@ TZ Desktop 是 **TZ / 天泽集团** 品牌的 Windows x64 私有即时通信客
 
 ## 从源码构建
 
-Windows 源码构建请从仓库现有的 [Windows 构建文档](docs/building-win.md) 开始，并使用其引用的 [`Telegram/build/prepare/win.bat`](Telegram/build/prepare/win.bat) 准备依赖。构建环境、依赖布局和命令以该文档及脚本的当前内容为准。
+仓库保留的 [Windows 上游通用构建文档](docs/building-win.md) 仅供依赖环境参考；它仍包含上游 Telegram Desktop 的示例仓库地址，不可直接照抄来构建 TZ。
+
+在高配 Windows 电脑上构建 1.0.5 正式 LTO 产物时，请直接使用 [TZ Desktop 1.0.5 Windows LTO 构建交接](docs/TZ_WINDOWS_1.0.5_LTO_CODEX.zh-CN.md)。该文档包含可直接粘贴给 Codex 的指令、固定提交、完整构建顺序、预期产物和实机验收清单。
 
 ## 上游、许可证与第三方组件
 

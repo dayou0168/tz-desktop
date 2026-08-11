@@ -54,6 +54,7 @@ https://github.com/telegramdesktop/tdesktop/blob/master/LEGAL
 #include "settings/settings_privacy_controllers.h"
 #include "settings/sections/settings_websites.h"
 #include "storage/storage_domain.h"
+#include "tz/tz_client_contract.h"
 #include "ui/boxes/confirm_box.h"
 #include "ui/effects/premium_graphics.h"
 #include "ui/layers/generic_box.h"
@@ -535,6 +536,111 @@ namespace {
 
 using namespace Builder;
 
+void ChangeTzLoginPasswordBox(
+		not_null<Ui::GenericBox*> box,
+		not_null<::Main::Session*> session,
+		not_null<Window::SessionController*> controller) {
+	box->setTitle(tr::lng_tz_login_password_change());
+
+	const auto layout = box->verticalLayout();
+	Ui::AddDividerText(layout, tr::lng_tz_login_password_description());
+	Ui::AddSkip(layout);
+	const auto currentPassword = box->addRow(
+		object_ptr<Ui::PasswordInput>(
+			box,
+			st::defaultInputField,
+			tr::lng_tz_login_password_current()),
+		st::boxRowPadding);
+	const auto newPassword = box->addRow(
+		object_ptr<Ui::PasswordInput>(
+			box,
+			st::defaultInputField,
+			tr::lng_tz_login_password_new()),
+		st::boxRowPadding);
+	const auto confirmPassword = box->addRow(
+		object_ptr<Ui::PasswordInput>(
+			box,
+			st::defaultInputField,
+			tr::lng_tz_login_password_confirm()),
+		st::boxRowPadding);
+
+	struct State {
+		mtpRequestId requestId = 0;
+	};
+	const auto state = box->lifetime().make_state<State>();
+	box->lifetime().add([=] {
+		if (state->requestId) {
+			session->api().request(state->requestId).cancel();
+		}
+	});
+	box->setFocusCallback([=] {
+		currentPassword->setFocusFast();
+	});
+
+	const auto submit = [=] {
+		if (state->requestId) {
+			return;
+		}
+		const auto current = currentPassword->getLastText();
+		const auto updated = newPassword->getLastText();
+		const auto confirmed = confirmPassword->getLastText();
+		if (current.isEmpty()) {
+			currentPassword->showError();
+			return;
+		} else if (!Tz::LoginPasswordAccepted(updated)) {
+			newPassword->showError();
+			controller->showToast(tr::lng_tz_login_password_too_short(tr::now));
+			return;
+		} else if (updated != confirmed) {
+			confirmPassword->showError();
+			controller->showToast(tr::lng_tz_login_password_mismatch(tr::now));
+			return;
+		} else if (updated == current) {
+			newPassword->showError();
+			controller->showToast(tr::lng_tz_login_password_same(tr::now));
+			return;
+		}
+
+		using Flag = MTPDaccount_passwordInputSettings::Flag;
+		const auto settings = MTP_account_passwordInputSettings(
+			MTP_flags(Flag::f_new_password_hash | Flag::f_hint),
+			MTP_passwordKdfAlgoUnknown(),
+			MTP_bytes(Tz::LoginPasswordUpdatePayload(current, updated)),
+			MTP_string(
+				QStringView(Tz::kLoginPasswordSettingsHint).toString()),
+			MTP_string(),
+			MTPSecureSecretSettings());
+		state->requestId = session->api().request(
+			MTPaccount_UpdatePasswordSettings(
+				MTP_inputCheckPasswordEmpty(),
+				settings)
+		).done([=] {
+			state->requestId = 0;
+			controller->showToast(tr::lng_tz_login_password_success(tr::now));
+			box->closeBox();
+		}).fail([=](const MTP::Error &error) {
+			state->requestId = 0;
+			if (error.type() == u"PASSWORD_HASH_INVALID"_q) {
+				currentPassword->showError();
+				controller->showToast(
+					tr::lng_tz_login_password_invalid(tr::now));
+			} else {
+				controller->showToast(error.type());
+			}
+		}).handleFloodErrors().send();
+	};
+	currentPassword->submits() | rpl::on_next([=] {
+		newPassword->setFocusFast();
+	}, currentPassword->lifetime());
+	newPassword->submits() | rpl::on_next([=] {
+		confirmPassword->setFocusFast();
+	}, newPassword->lifetime());
+	confirmPassword->submits(
+	) | rpl::on_next(submit, confirmPassword->lifetime());
+	box->addButton(tr::lng_tz_login_password_save(), submit);
+	box->addButton(tr::lng_cancel(), [=] { box->closeBox(); });
+}
+
 void BuildSecuritySection(
 		SectionBuilder &builder,
 		rpl::producer<> updateTrigger) {
@@ -596,6 +702,19 @@ void BuildSecuritySection(
 			}
 		},
 		.keywords = { u"password"_q, u"2fa"_q, u"two-factor"_q },
+	});
+
+	builder.addButton({
+		.id = u"security/tz_login_password"_q,
+		.title = tr::lng_tz_login_password_change(),
+		.icon = { &st::menuIcon2SV },
+		.onClick = [=] {
+			controller->show(Box(
+				ChangeTzLoginPasswordBox,
+				session,
+				controller));
+		},
+		.keywords = { u"password"_q, u"login"_q, u"TZ"_q },
 	});
 
 	session->api().cloudPassword().reload();

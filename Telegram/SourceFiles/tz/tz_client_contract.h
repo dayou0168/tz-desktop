@@ -13,10 +13,11 @@ inline constexpr auto kProductName = u"TZ";
 inline constexpr auto kCompanyName = u"天泽集团";
 inline constexpr auto kCompanyAscii = u"tianze";
 inline constexpr auto kInternalPublicUrl = u"https://tg.tianze8.cc/";
-inline constexpr auto kVersion = u"1.0.3";
+inline constexpr auto kVersion = u"1.0.5";
 inline constexpr auto kDefaultLanguageId = u"zh-hans";
 inline constexpr auto kCompatibleLegacyStorageVersion = 6008004;
 inline constexpr auto kLoginPasswordMinimumCodePoints = 8;
+inline constexpr auto kLoginPasswordSettingsHint = u"TZ_LOGIN_PASSWORD_V1";
 inline constexpr auto kLoginPasswordTitle = u"输入密码";
 inline constexpr auto kLoginPasswordDescription = u"请输入账号密码。";
 inline constexpr auto kLoginPasswordPlaceholder = u"密码";
@@ -43,6 +44,15 @@ inline constexpr auto kLoginIdentityOrPasswordError = u"账号或密码错误";
 
 [[nodiscard]] inline bool LoginPasswordAccepted(QStringView password) {
 	return UnicodeCodePointCount(password) >= kLoginPasswordMinimumCodePoints;
+}
+
+[[nodiscard]] inline QByteArray LoginPasswordUpdatePayload(
+		QStringView currentPassword,
+		QStringView newPassword) {
+	auto result = currentPassword.toString().toUtf8();
+	result.append('\0');
+	result.append(newPassword.toString().toUtf8());
+	return result;
 }
 
 [[nodiscard]] inline bool IsVisibleBrandIdentifierCharacter(QChar value) {

@@ -22,8 +22,18 @@ int main() {
 	if (QStringView(Tz::kCompanyAscii) != QStringView(u"tianze")) {
 		return 6;
 	}
-	if (QStringView(Tz::kVersion) != QStringView(u"1.0.3")) {
+	if (QStringView(Tz::kVersion) != QStringView(u"1.0.5")) {
 		return 7;
+	}
+	if (QStringView(Tz::kLoginPasswordSettingsHint)
+			!= QStringView(u"TZ_LOGIN_PASSWORD_V1")) {
+		return 29;
+	}
+	if (Tz::LoginPasswordUpdatePayload(
+			QStringView(u"current"),
+			QStringView(u"new-password"))
+			!= QByteArray("current\0new-password", 20)) {
+		return 30;
 	}
 	if (QStringView(Tz::kDefaultLanguageId) != QStringView(u"zh-hans")) {
 		return 8;
